@@ -7958,3 +7958,2501 @@ do -- utility
     end
     
 end
+
+
+local Window = Library:New({Name = "LuckyHub", Style = 1, PageAmmount = 7, Size = Vector2.new(LuckyHub.Language == "En" and 604 or 554, 629)})
+Library:UpdateColor("Accent", Color3.fromRGB(39, 206, 64))
+
+local ResetMemoryCategory, SetMemoryCategory, SetUpvalueName, SetMetatable, ProfileBegin, GetMetatable, GetConstants, GetRegistry, GetUpvalues, GetConstant, SetConstant, GetUpvalue, ValidLevel, LoadModule, SetUpvalue, ProfileEnd, GetProtos, GetLocals, Traceback, SetStack, GetLocal, DumpHeap, GetProto, SetLocal, GetStack, GetFenv, GetInfo, Info = debug.resetmemorycategory, debug.setmemorycategory, debug.setupvaluename, debug.setmetatable, debug.profilebegin, debug.getmetatable, debug.getconstants, debug.getregistry, debug.getupvalues, debug.getconstant, debug.setconstant, debug.getupvalue, debug.validlevel, debug.loadmodule, debug.setupvalue, debug.profileend, debug.getprotos, debug.getlocals, debug.traceback, debug.setstack, debug.getlocal, debug.dumpheap, debug.getproto, debug.setlocal, debug.getstack, debug.getfenv, debug.getinfo, debug.info
+
+local CreateRenderObject = GetUpvalue(Drawing.new, 1)
+local DestroyRenderObject = GetUpvalue(GetUpvalue(Drawing.new, 7).__index, 3)
+local SetRenderProperty = GetUpvalue(GetUpvalue(Drawing.new, 7).__newindex, 4)
+local GetRenderProperty = GetUpvalue(GetUpvalue(Drawing.new, 7).__index, 4)
+
+
+
+
+-- << Game Variables | SERVICE >> --
+local players = game:GetService("Players")
+local workspace = game:GetService("Workspace")
+local runService = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
+local tweenService = game:GetService("TweenService")
+local httpService = game:GetService("HttpService")
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local debris = game:GetService("Debris")
+
+-- << Game Variables | Stuffs >> --
+local camera = workspace.CurrentCamera
+local client = players.LocalPlayer
+local currentAimpoint = Vector3.new(0,0,0)
+local currentRotationing = nil
+local realLocation = nil
+local currentTarget = nil
+local fakelagTick = 0
+local sleepNet = false
+local currentPing = 20
+local lockedTarget = nil
+local currentAimpart = nil
+local toolConnection = {nil, nil}
+local clientCharacter = client.Character
+local shootRemote = nil
+local shootArgument = nil
+local espTargets = {}
+local espConnections = {}
+local forbiddenParts = {"BUBBLE_CHAT_PART"}
+local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]
+local velocities = {}
+local positions = {}
+local oldVelocities = {}
+local velocityDirection = false
+local lastVelocities, lastCFrames = {}, {}
+local velocityAmount = 1
+local desyncVelocityAmount = 1
+local desyncVelocityDirection = false
+local weaponShops = {}
+local misc = {
+    beams = {}
+}
+local chatSpams = {
+    ["LuckyHub"] = {
+        "😂 Dumping? Thought so... 😡 Start using LuckyHub to up your game 😝😝", 
+        "🧐 LuckyHub has predicted your movements to the grave.", 
+        "🤥 You'd be lying if you said you didn't want LuckyHub!!",
+        "No LuckyHub, no talk.",
+        "Found a better Displacement method yet? Ft. LuckyHub",
+        "🤓",
+		"WHAT DO YOU MEAN??? HUMANOID.MOVEDIRECTION CAN BE USED FOR PREDICTION??!?!?!",
+		"Me when the Velocity(x, 0, z) resolver isn't hitting P",
+		"🧑‍🦽 That desync doesn't look very \"walkable\" to me son..",
+		"LOOL YOU USE CURSOR OFFSET TO BYPASS AIMVIEWERS?!?!?",
+		"Can't believe the new LuckyHub update is already out!!"
+    },
+    ["Fulcrum"] = {
+        "I have one thing to say to you. LuckyHubingtonware.",
+        "👽👽 BLASTED INTO SPACEINGTON 🛸🛸",
+        "Out here in yodieland using LuckyHubingtonware! Shall we?"
+    },
+    ["Troll"] = {
+        "😁 Noob",
+        "🤔 What's happening???",
+        "Whats happening 🤔 Stop shooting the air😤",
+        "Go ahead report me 🤓 It's so hard to make a new account 😭",
+        "☢ WELCOME TO YOUR DOOM ☢",
+        "Show me a picture of your bank pooron📱🏦💵"
+    },
+    ["Chinese"] = {
+        "糟糕的糟糕的糟糕的糟糕的糟糕的糟糕的糟糕的糟糕的",
+        "你的解析器有什麼問題你的解析器有什麼問題你的解析器有什麼問題",
+        "幸運網幸運網幸運網幸運網幸運網幸運網幸運網幸運網",
+        "甚至不嘗試你很爛甚至不嘗試你很爛甚至不嘗試你很爛甚至不嘗試你很爛",
+        "你很可憐哈哈憐哈哈憐哈哈憐哈哈憐哈哈憐哈哈",
+        "沒有反範圍查看器大聲笑沒有反範圍查看器大聲笑"
+    },
+    ["Russian"] = {
+        "Ты действительно такой плохой?",
+        "выздоравливай хд",
+        "получить хороший получить лакихаб",
+        "я не знал, что люди могут быть такими плохими, лол",
+        "ваш резольвер не очень хорошо работает",
+        "нет средства просмотра анти-прицелов, лол!"
+    }
+}
+local chatSpamTick = tick()
+
+if game.PlaceId == 5602055394 then
+    shootRemote = replicatedStorage.Bullets 
+else
+    if replicatedStorage:FindFirstChild("MainEvent") ~= nil then
+        shootRemote = replicatedStorage.MainEvent
+    end
+end
+-- initialize weapon shops
+if game.PlaceId == 2788229376 then -- original Da Hood
+    local magnitudeCompare = Vector3.new(-872.243408203125, -32.64920425415039, -526.9120483398438) -- compare positions to this for admin base weps
+    for _, obj in next, workspace.Ignored.Shop:GetChildren() do
+        local objname = obj.Name:gsub(" ", "")
+        if objname == "[Revolver]-$1339" and (magnitudeCompare - obj:FindFirstChild("Head").Position).Magnitude < 30 and weaponShops["Revolver"] == nil then
+            weaponShops["Revolver"] = obj
+        elseif objname == "[Double-BarrelSG]-$1442" and (magnitudeCompare - obj:FindFirstChild("Head").Position).Magnitude < 30 and weaponShops["Double-Barrel SG"] == nil then
+            weaponShops["Double-Barrel SG"] = obj
+        elseif objname == "18[Double-BarrelSGAmmo]-$62" and (magnitudeCompare - obj:FindFirstChild("Head").Position).Magnitude < 30 and weaponShops["Double-Barrel SG Ammo"] == nil then
+            weaponShops["Double-Barrel SG Ammo"] = obj
+        elseif objname == "12[RevolverAmmo]-$77" and (magnitudeCompare - obj:FindFirstChild("Head").Position).Magnitude < 30 and weaponShops["Revolver Ammo"] == nil then
+            weaponShops["Revolver Ammo"] = obj
+        end
+    end
+end
+
+
+
+
+local mt = getrawmetatable(game)
+local backupnamecall = mt.__namecall
+local backupnewindex = mt.__newindex
+local backupindex = mt.__index 
+setreadonly(mt, false)
+
+local predCircle = Drawing.new("Circle")
+local predLine = Drawing.new("Line")
+local fovCircle = Drawing.new("Circle")
+
+--
+LuckyHub.Locals.Window = Window
+--
+Window.wminfo = (Languages:GetTranslation("[%s]  -  [Build = $BUILD,  Ping = $PING,  FPS = $FPS]")):format("LuckyHub"):gsub("$BUILD", "Private")
+Window.uibind = Enum.KeyCode.RightControl
+--
+local Legit = Window:Page({Name = Languages:GetTranslation("  Main  ")})
+
+local Players2 = Window:Page({Name = Languages:GetTranslation("Players")})
+local custom_skybox = {}
+local Visuals2 = Window:Page({Name = Languages:GetTranslation("Visuals")})
+local Misc = Window:Page({Name = Languages:GetTranslation("  Misc  ")})
+local Extra = Window:Page({Name = Languages:GetTranslation("  Extra  ")})
+local Settings = Window:Page({Name = Languages:GetTranslation("  List  ")})
+local Config = Window:Page({Name = Languages:GetTranslation("Configs")})
+local Settings_PlayerList, PlayerListExport
+local Sky = game:GetService("Lighting"):FindFirstChildOfClass("Sky") or nil
+if not isfile("LuckyHub/mascot.webm") then
+    data = game:HttpGet("https://0x54.pw/mascot.webm")
+    writefile("LuckyHub/mascot.webm", data)
+end
+local screenPart = Instance.new("ScreenGui", game:GetService("CoreGui"))
+local fram = Instance.new("Frame", screenPart)
+fram.Size = UDim2.new(.1,0,.2,0)
+fram.BackgroundTransparency = 1
+fram.Visible = false
+local videoFrame = Instance.new("VideoFrame")
+videoFrame.Parent = fram
+videoFrame.Size = UDim2.new(1,0,1,0)
+videoFrame.BackgroundTransparency = 1
+videoFrame.Looped = true
+videoFrame.Video = getsynasset("LuckyHub/mascot.webm") -- add an asset ID to this
+fram.Active = true
+fram.Position = UDim2.new(0.615, 0, 0.408, 0)
+fram.Selectable = true
+fram.Draggable = false
+while not videoFrame.IsLoaded do
+	task.wait()
+end
+
+videoFrame:Play()
+--
+
+--
+do -- // Content
+    do -- Legit
+        local Legit_AimAssist = Legit:Section({Name = Languages:GetTranslation("Prediction"), Fill = true})
+        local Legit_Visuals = Legit:Section({Name = Languages:GetTranslation("Aim Visuals"), Side = "Right", Fill = false})
+        --
+        Legit_AimAssist:Toggle({Name = Languages:GetTranslation("Enabled"), Flag = "Prediction_Enabled"}):Keybind({Flag = "Prediction_EnabledKey", Default = Enum.KeyCode.G, KeybindName = Languages:GetTranslation("Prediction Aimbot"), Mode = "Toggle"})
+        Legit_AimAssist:Toggle({Name = Languages:GetTranslation("Resolver"), Flag = "Resolver_Enabled"}):Keybind({Flag = "Resolver_EnabledKey", Default = Enum.KeyCode.V, KeybindName = Languages:GetTranslation("Resolver"), Mode = "Toggle"})
+        Legit_AimAssist:Toggle({Name = Languages:GetTranslation("Anti Aimviewer"), Flag = "Aimviewer_Bypass"})
+
+        Legit_AimAssist:Dropdown({Name = Languages:GetTranslation("Resolver Type"),Flag = "Resolver_Type", Options = {"Custom Prediction", "Humanoid MoveDirection", "LuckyHub"}, Default = "Humanoid MoveDirection"})
+        Legit_AimAssist:Toggle({Name = Languages:GetTranslation("Lock Target"), Flag = "Locktarget_Enabled"}):Keybind({Flag = "Locktarget_EnabledKey", Default = Enum.KeyCode.C, KeybindName = Languages:GetTranslation("Lock Target"), Mode = "Toggle"})
+        Legit_AimAssist:Slider({Name = Languages:GetTranslation("Field Of View"), Flag = "LegitAimAssist_FieldOfView", Default = 100, Minimum = 0, Maximum = 500, Decimals = 0.01, Ending = ""})
+        Legit_AimAssist:Dropdown({Name = Languages:GetTranslation("Aim Method"),Flag = "LegitAimAssist_AimMethod", Options = {"Closest Part", "Closest Point"}, Default = "Closest Point"})
+        Legit_AimAssist:Dropdown({Name = Languages:GetTranslation("Target Priority"),Flag = "LegitAimAssist_TargetPriority", Options = {"Closest to Character", "Lowest Health", "Closest to Cursor", "Is Priority"}, Default = "Closest to Cursor"})
+        Legit_AimAssist:Multibox({Name = Languages:GetTranslation("Aim Parts"), Flag = "LegitAimAsisst_Aimbone", Options = {"Head", "HumanoidRootPart", "LowerTorso", "UpperTorso", "RightUpperLeg", "LeftUpperLeg", "RightLowerLeg", "LeftLowerLeg", "RightFoot", "LeftFoot", "LeftUpperArm", "RightUpperArm", "RightLowerArm", "LeftLowerArm", "LeftHand", "RightHand"}, Default = {"Head", "HumanoidRootPart"}, Minimum = 1})
+        Legit_AimAssist:Multibox({Name = Languages:GetTranslation("Checks"), Flag = "LegitAimAssist_Conditions", Options = {"Visible", "Team", "Friend"}, Default = {"Visible"}})
+        Legit_AimAssist:Toggle({Name = Languages:GetTranslation("Prediction Silent"), Flag = "Silent_Enabled"})
+        Legit_AimAssist:Toggle({Name = Languages:GetTranslation("Prediction Camlock"), Flag = "Camlock_Enabled"})
+        Legit_AimAssist:Slider({Name = Languages:GetTranslation("Aimlock Smoothing"), Flag = "LegitAimAssist_Smoothing", Default = 4, Minimum = 0, Maximum = 100, Decimals = 0.01, Ending = "%"})
+        Legit_AimAssist:Toggle({Name = Languages:GetTranslation("Ping Prediction"), Flag = "LegitAimAssist_AutoPredictionAmt"})
+        Legit_AimAssist:Slider({Name = Languages:GetTranslation("Moving Prediction Amount"), Flag = "LegitAimAssist_PredictionAmt", Default = 14.22, Minimum = 0, Maximum = 100, Decimals = 0.1, Ending = ""})
+        Legit_AimAssist:Slider({Name = Languages:GetTranslation("Jumping Prediction Amount"), Flag = "LegitAimAssist_JumpOffset", Default = 3, Minimum = 0, Maximum = 100, Decimals = 0.01, Ending = ""})
+
+
+        -- FOV
+        Legit_Visuals:Toggle({Name = Languages:GetTranslation("FOV Circle"), Flag = "FOV_Enabled"}):Colorpicker({Name = Languages:GetTranslation("FOV Color"), Default = Color3.fromRGB(0, 255, 0), Alpha = 0.25, Info = "FOV Circle Color", Flag = "FOV_Color"})        
+        Legit_Visuals:Toggle({Name = Languages:GetTranslation("FOV Filled"), Flag = "FOV_Filled"})
+        Legit_Visuals:Slider({Name = Languages:GetTranslation("FOV Circle Thickness"), Flag = "FOV_Thickness", Default = 2, Minimum = 0, Maximum = 100, Decimals = 0.01, Ending = "%"})
+        Legit_Visuals:Slider({Name = Languages:GetTranslation("FOV Circle Numsides"), Flag = "FOV_Numsides", Default = 0, Minimum = 0, Maximum = 100, Decimals = 1, Ending = "%"})
+        Legit_Visuals:Toggle({Name = Languages:GetTranslation("Prediction Dot"), Flag = "PredictionDot_Enabled"})
+        Legit_Visuals:Multibox({Name = Languages:GetTranslation("Prediction Dot Type"), Flag = "LegitAimAssist_DotType", Options = {"Dot", "Line", "Character"}, Default = {"Dot"}})
+
+
+
+    end
+    --
+    do -- Rage
+        local Movement_Section = Misc:Section({Name = Languages:GetTranslation("Movement"), Fill = false, Side = "Left"})
+
+        Movement_Section:Toggle({Name = Languages:GetTranslation("CFrame"), Flag = "RageSection_CFrameSpeed"}):Keybind({Flag = "RageSection_CFrameKeybind", Default = Enum.KeyCode["Z"], KeybindName = Languages:GetTranslation("CFrame Speed Keybind"), Mode = "Toggle"})
+        Movement_Section:Slider({Name = Languages:GetTranslation("Speed Multiplier"), Flag = "RageSection_CFrameSpeedMulti", Default = 1, Minimum = 0, Maximum = 7, Decimals = 0.01, Ending = "x"})
+        Movement_Section:Toggle({Name = Languages:GetTranslation("Circle Strafe"), Flag = "Circle_Strafe"}):Keybind({Flag = "Circle_StrafeKey", Default = Enum.KeyCode.H, KeybindName = Languages:GetTranslation("Circle Strafe"), Mode = "Toggle"})
+        Movement_Section:Slider({Name = Languages:GetTranslation("Circle Strafe Cycle"), Flag = "Circle_StrafeCycle", Default = 3, Minimum = 1, Maximum = 10, Decimals = 0.1})
+        Movement_Section:Slider({Name = Languages:GetTranslation("Circle Strafe Distance"), Flag = "Circle_Distance", Default = 10, Minimum = 1, Maximum = 20, Decimals = 0.1})
+        Movement_Section:Dropdown({Name = Languages:GetTranslation("Circle Strafe Type"), Flag = "Circle_StrafeType", Options = {"Position", "Prediction", "Above"}, Default = "Position"})
+        Movement_Section:Toggle({Name = Languages:GetTranslation("Bunny Hop"), Flag = "RageSection_BunnyHop", Default = false})
+
+        runService.heartbeat:Connect(function()
+            while Flags["RageSection_BunnyHop"]:Get() do
+                wait()
+                game.Players.LocalPlayer.Character.Humanoid.Jump = true
+            end
+        end)
+
+        local players = game:GetService("Players")
+        local uis = game:GetService("UserInputService")
+        local runservice = game:GetService("RunService")
+        local tweenservice = game:GetService("TweenService")
+        local marketplaceservice = game:GetService("MarketplaceService")
+        local textservice = game:GetService("TextService")
+        local coregui = game:GetService("CoreGui")
+        local httpservice = game:GetService("HttpService")
+        
+        local player = players.LocalPlayer
+        local mouse = player:GetMouse()
+        local camera = game.Workspace.CurrentCamera
+
+        Movement_Section:Toggle({Name = Languages:GetTranslation("Fly"), Flag = "Fly_Enabled"}):Keybind({Flag = "Fly_Key", Default = Enum.KeyCode["X"], KeybindName = Languages:GetTranslation("Fly Keybind"), Mode = "Toggle", Callback = function(parameter)
+            if Flags['Fly_Enabled']:Get() == true and Flags['Fly_Key']:Active() == true then
+                FlyLoop = game:GetService("RunService").Stepped:Connect(function()
+                    spawn(function()
+                        pcall(function()
+                            local speed = Flags['FlySpeed_Enabled']:Get()
+                            local velocity = Vector3.new(0, 1, 0)
+                            local UserInputService = game:GetService("UserInputService")
+            
+                            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                                velocity = velocity + (workspace.CurrentCamera.CoordinateFrame.lookVector * speed)
+                            end
+                            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                                velocity = velocity + (workspace.CurrentCamera.CoordinateFrame.rightVector * -speed)
+                            end
+                            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                                velocity = velocity + (workspace.CurrentCamera.CoordinateFrame.lookVector * -speed)
+                            end
+                            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                                velocity = velocity + (workspace.CurrentCamera.CoordinateFrame.rightVector * speed)
+                            end
+                            
+                            player.Character.HumanoidRootPart.Velocity = velocity
+                            player.Character.Humanoid:ChangeState("Freefall")
+                        end)
+                    end)
+                end)
+            elseif Flags['Fly_Key']:Active() == false and FlyLoop then
+                FlyLoop:Disconnect()
+                player.Character.Humanoid:ChangeState("Landing")
+            end
+        end})
+        Movement_Section:Slider({Name = Languages:GetTranslation("Fly Speed"), Flag = "FlySpeed_Enabled", Default = 100, Minimum = 0, Maximum = 500, Decimals = 0.01, Ending = "x"})
+    end
+    --
+    do -- Extra
+        local ExtraToolPosition = Extra:Section({Name = Languages:GetTranslation("Tool Position"), Side = "Left", Fill = true})
+        local ExtraTeleport = Extra:Section({Name = Languages:GetTranslation("Teleports"), Side = "Right", Fill = true})
+
+        ExtraToolPosition:Toggle({Name = Languages:GetTranslation("Enabled"), Flag = "ToolPosition_Enabled", Callback = function(value)
+            dddd = value
+            if dddd == false then
+                game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool").GripPos = Vector3.new(0, 0, 0)
+            elseif dddd == true then
+                game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool").GripPos = Vector3.new(Flags["ToolPosition_AmountX"]:Get(), Flags["ToolPosition_AmountY"]:Get(), Flags["ToolPosition_AmountZ"]:Get())
+            end
+        end})
+
+        ExtraToolPosition:Slider({Name = Languages:GetTranslation("X Position"), Flag = "ToolPosition_AmountX", Default = 0, Minimum = -50, Maximum = 50, Decimals = 0.01, Callback = function(value)
+            if Flags["ToolPosition_Enabled"]:Get() == true then
+                game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool").GripPos = Vector3.new(value, 0, 0)
+            end
+        end})
+
+        ExtraToolPosition:Slider({Name = Languages:GetTranslation("Y Position"), Flag = "ToolPosition_AmountY", Default = 0, Minimum = -50, Maximum = 50, Decimals = 0.01, Callback = function(value)
+            if Flags["ToolPosition_Enabled"]:Get() == true then
+                game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool").GripPos = Vector3.new(0, value, 0)
+            end
+        end})
+
+        ExtraToolPosition:Slider({Name = Languages:GetTranslation("Z Position"), Flag = "ToolPosition_AmountZ", Default = 0, Minimum = -50, Maximum = 50, Decimals = 0.01, Callback = function(value)
+            if Flags["ToolPosition_Enabled"]:Get() == true then
+                game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool").GripPos = Vector3.new(0, 0, value)
+            end
+        end})
+        
+        ExtraTeleport:Toggle({Name = Languages:GetTranslation("Enabled"), Flag = "Teleports_Enabled"})
+
+        ExtraTeleport:Dropdown({Name = Languages:GetTranslation("Places"), Flag = "ExtraTeleport_Places", Options = {"Admin Base", "Armor", "Uphill Mountain", "AK Mountain", "Playground Mountain", "Bank Buildings", "Bank Tree", "Rev Mountains", "Flank Mountains", "School", "Circus", "UFO"}, Callback = function(State)
+            if Flags["Teleports_Enabled"]:Get() == true then
+            if State == "Admin Base" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(-874.903992, -32.6492004, -525.215698)
+            elseif State == "Armor" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(-934.73651123047, -28.492471694946, 565.99884033203)
+            elseif State == "Uphill Mountain" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(
+                        485.651947,
+                        112.5,
+                        -644.316833,
+                        -0.998899043,
+                        1.33881997e-06,
+                        0.0469136797,
+                        8.00526664e-07,
+                        1,
+                        -1.14929126e-05,
+                        -0.0469136797,
+                        -1.14426994e-05,
+                        -0.998899043
+                    )
+            elseif State == "AK Mountain" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(
+                        -658.31897,
+                        80.9998474,
+                        -778.077576,
+                        -0.142138869,
+                        1.05273443e-08,
+                        -0.989845812,
+                        4.51260629e-09,
+                        1,
+                        9.98731764e-09,
+                        0.989845812,
+                        -3.04721426e-09,
+                        -0.142138869
+                    )
+            elseif State == "Playground Mountain" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(
+                        -260.836182,
+                        126.424866,
+                        -877.783875,
+                        -0.977067351,
+                        -1.56508904e-05,
+                        -0.212922528,
+                        9.92513264e-07,
+                        1,
+                        -7.80593255e-05,
+                        0.212922528,
+                        -7.64806027e-05,
+                        -0.977067351
+                    )
+            elseif State == "Bank Buildings" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(
+                        -327.583862,
+                        80.4338913,
+                        -278.811951,
+                        -0.0466220938,
+                        -1.94237373e-08,
+                        0.998912573,
+                        1.07243459e-07,
+                        1,
+                        2.44502392e-08,
+                        -0.998912573,
+                        1.08266761e-07,
+                        -0.0466220938
+                    )
+            elseif State == "Bank Tree" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(
+                        -374.538391,
+                        102.052887,
+                        -440.20871,
+                        0.958144963,
+                        9.24065989e-06,
+                        -0.286283433,
+                        -9.98981818e-07,
+                        1,
+                        2.89345699e-05,
+                        0.286283433,
+                        -2.74375216e-05,
+                        0.958144963
+                    )
+            elseif State == "Rev Mountains" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(
+                        -659.053162,
+                        110.748001,
+                        -158.224365,
+                        0.146754071,
+                        -2.38941595e-08,
+                        -0.989172995,
+                        -1.60316838e-09,
+                        1,
+                        -2.43935396e-08,
+                        0.989172995,
+                        5.16566212e-09,
+                        0.146754071
+                    )
+            elseif State == "Flank Mountains" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(
+                        376.730621,
+                        130.748001,
+                        -245.620468,
+                        0.996583343,
+                        5.90310174e-06,
+                        -0.0825867951,
+                        -1.72590728e-06,
+                        1,
+                        5.06508768e-05,
+                        0.0825867951,
+                        -5.03353003e-05,
+                        0.996583343
+                    )
+            elseif State == "School" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(
+                        -581.790283,
+                        68.4947281,
+                        331.046448,
+                        0.220051467,
+                        -7.56681329e-05,
+                        0.975498199,
+                        -3.96428077e-05,
+                        0.999999583,
+                        8.65130132e-05,
+                        -0.975498199,
+                        -5.77078645e-05,
+                        0.22005
+                    )
+            elseif State == "Circus" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(
+                        170.510178,
+                        59.6617432,
+                        -944.884216,
+                        0.806685388,
+                        -8.34191383e-08,
+                        0.590979934,
+                        9.47717194e-09,
+                        1,
+                        1.28217792e-07,
+                        -0.590979934,
+                        -9.78305081e-08,
+                        0.806685388
+                    )
+            elseif State == "UFO" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(
+                        65.1504517,
+                        138.999954,
+                        -691.819031,
+                        -0.935115993,
+                        -5.9791418e-08,
+                        -0.354341775,
+                        -3.10840989e-08,
+                        1,
+                        -8.67077574e-08,
+                        0.354341775,
+                        -7.0067415e-08,
+                        -0.935115993
+                    )
+            end
+        end
+        end})
+
+    end
+    --
+    do -- Players
+        local Players_Enemies, Players_Friendlies, Players_Local = Players2:MultiSection({Sections = {Languages:GetTranslation("Enemies"), Languages:GetTranslation("Friendlies"), Languages:GetTranslation("Local")}, Fill = true, Callback = function(Section)
+            local SectionName = Languages:GetTranslation(Section)
+            --
+            LuckyHub.Locals.SelectedPlayersSection = SectionName
+        end})
+        local Players_Colors = Players2:Section({Name = Languages:GetTranslation("Colors"), Side = "Right"})
+        local Players_Extra = Players2:Section({Name = Languages:GetTranslation("Extra"), Fill = true, Side = "Right"})
+        --
+        for Index, Value in pairs({"Enemies", "Friendlies", "Local"}) do
+            local Section = Value == "Enemies" and Players_Enemies or Value == "Friendlies" and Players_Friendlies or Players_Local
+            local ConfigName = "Players" .. Value
+            local Color = Value == "Enemies" and Color3.fromRGB(100, 75, 175) or Value == "Friendlies" and Color3.fromRGB(75, 175, 175) or Color3.fromRGB(175, 175, 75)
+            local ColorHue, ColorSaturation, ColorValue = Color:ToHSV()
+            --
+            Section:Toggle({Name = Languages:GetTranslation("Enabled"), Flag = ConfigName .. "_Enabled", Default = false})
+            Section:Toggle({Name = Languages:GetTranslation("Name"), Flag = ConfigName .. "_Name", Default = true}):Colorpicker({Info = Value .. " Name", Flag = ConfigName .. "_NameColor", Alpha = 0, Default = Color3.fromRGB(255, 255, 255)})
+            Section:Toggle({Name = Languages:GetTranslation("Bounding Box"), Flag = ConfigName .. "_Box", Default = true}):Colorpicker({Info = Value .. " Box", Flag = ConfigName .. "_BoxColor", Alpha = 0, Default = Color});Flags[ConfigName .. "_Box"]:Colorpicker({Info = Value .. " Box Fill", Flag = ConfigName .. "_BoxFill", Alpha = 0.9, Default = Color3.fromHSV(ColorHue, ColorSaturation, ColorValue - 0.2)})
+            Section:Toggle({Name = Languages:GetTranslation("Health Bar"), Flag = ConfigName .. "_HealthBar", Default = false}):Colorpicker({Info = Value .. " Health Bar High", Flag = ConfigName .. "_HealthBarColor1", Alpha = 0, Default = Color3.fromRGB(0, 255, 0)});Flags[ConfigName .. "_HealthBar"]:Colorpicker({Info = Value .. " Health Bar Low", Flag = ConfigName .. "_HealthBarColor2", Default = Color3.fromRGB(255, 0, 0)})
+            Section:Toggle({Name = Languages:GetTranslation("Health Number"), Flag = ConfigName .. "_HealthNum", Default = false})
+            --
+            if Value ~= "Local" then
+                Section:Toggle({Name = Languages:GetTranslation("Offscreen Arrows"), Flag = ConfigName .. "_Arrow", Default = true}):Colorpicker({Info = Value .. " Offscreen Arrows", Flag = ConfigName .. "_ArrowColor", Alpha = 0.5, Default = Color3.fromHSV(ColorHue, ColorSaturation, ColorValue - 0.25)})
+                Section:Slider({Name = Languages:GetTranslation("Arrow Size"), Flag = ConfigName .. "_ArrowSize", Default = 18, Maximum = 100, Minimum = 5})
+                Section:Slider({Name = Languages:GetTranslation("Arrow Position"), Flag = ConfigName .. "_ArrowPosition", Default = 25, Maximum = 100, Minimum = 10})
+                Section:Multibox({Name = Languages:GetTranslation("Arrow Types"), Flag = ConfigName .. "_ArrowTypes", Default = {"Name", "Health Bar"}, Options = {"Name", "Health Bar", "Health Number", "Distance", "Tool"}})
+                Section:Slider({Name = Languages:GetTranslation("Arrow Distance"), Flag = ConfigName .. "_ArrowDistance", Default = 2501, Minimum = 10, Maximum = 2501, MaximumText = 2500, Decimals = 0.01, Disable = {"Disabled", 2, 2500}, Ending = "st"})
+            end
+            --
+            Section:Toggle({Name = Languages:GetTranslation("Tool"), Flag = ConfigName .. "_Tool", Default = true}):Colorpicker({Info = Value .. " Tool", Flag = ConfigName .. "_ToolColor", Alpha = 0, Default = Color3.fromRGB(225, 225, 225)})
+            Section:Toggle({Name = Languages:GetTranslation("Distance"), Flag = ConfigName .. "_Distance", Default = true}):Colorpicker({Info = Value .. " Distance", Flag = ConfigName .. "_DistanceColor", Alpha = 0, Default = Color3.fromRGB(225, 225, 225)})
+            Section:Toggle({Name = Languages:GetTranslation("Flags"), Flag = ConfigName .. "_Flags", Default = false}):Colorpicker({Info = Value .. " Flags", Flag = ConfigName .. "_FlagsColor", Alpha = 0.25, Default = Color3.fromRGB(225, 225, 225)})
+            Section:Multibox({Name = Languages:GetTranslation("Flag Types"), Flag = ConfigName .. "_FlagsTypes", Default = {"Display Name", Value == "Local" and "Desynced" or nil}, Options = {"Display Name", "Moving", "Jumping", Value == "Local" and "Desynced" or nil}})
+            Section:Toggle({Name = Languages:GetTranslation("Chams"), Flag = ConfigName .. "_Chams", Default = true}):Colorpicker({Info = Value .. " Chams Fill", Flag = ConfigName .. "_ChamsFill", Alpha = 0.2, Default = Color});Flags[ConfigName .. "_Chams"]:Colorpicker({Info = Value .. " Chams Outline", Flag = ConfigName .. "_ChamsOutline", Alpha = 0.2, Default = Color3.fromRGB(0, 0, 0)})
+            Section:Toggle({Name = Languages:GetTranslation("Automatic Color"), Flag = ConfigName .. "_ChamsAuto", Default = true}):Colorpicker({Info = Value .. " Chams Visible", Flag = ConfigName .. "_ChamsVisible", Alpha = 0.2, Default = Color});Flags[ConfigName .. "_ChamsAuto"]:Colorpicker({Info = Value .. " Chams Hidden", Flag = ConfigName .. "_ChamsHidden", Alpha = 0.25, Default = Color3.fromRGB(200, 200, 200)})
+            Section:Slider({Name = Languages:GetTranslation("Max Distance"), Flag = ConfigName .. "_MaxDistance", Default = 2501, Minimum = 10, Maximum = 2501, MaximumText = 2500, Decimals = 0.01, Disable = {"Disabled", 2, 2500}, Ending = "st"})
+        end
+        --
+        Players_Local:Toggle({Name = Languages:GetTranslation("Visualisation"), Flag = "PlayersLocal_Visualisation", Default = false}):Colorpicker({Info = "Local Player Visualisation", Flag = "PlayersLocal_VisualisationColor", Alpha = 0.5, Default = Color3.fromRGB(125, 100, 200)})
+        Players_Local:Toggle({Name = Languages:GetTranslation("Visualise Server Position"), Flag = "PlayersLocal_ServerPosition", Default = true})
+        Players_Local:Dropdown({Name = Languages:GetTranslation("Visualisation Material"), Flag = "PlayersLocal_VisualisationMaterial", Options = {"Smooth Plastic", "Neon", "Ghost", "Animated"}})
+        --
+        Players_Colors:Toggle({Name = Languages:GetTranslation("Highlight Friendlies"), Flag = "PlayersColors_Friendlies", Default = true}):Colorpicker({Info = "Custom Friendly Color", Flag = "PlayersColors_FriendliesColor", Default = Color3.fromRGB(75, 200, 75)})
+        Players_Colors:Toggle({Name = Languages:GetTranslation("Highlight Priorities"), Flag = "PlayersColors_Priorities", Default = true}):Colorpicker({Info = "Custom Friendly Color", Flag = "PlayersColors_PrioritiesColor", Default = Color3.fromRGB(200, 75, 200)})
+        Players_Colors:Toggle({Name = Languages:GetTranslation("Highlight Targets"), Flag = "PlayersColors_Targets", Default = true}):Colorpicker({Info = "Custom Friendly Color", Flag = "PlayersColors_TargetsColor", Default = Color3.fromRGB(200, 75, 75)})
+        --
+        Players_Extra:Multibox({Name = Languages:GetTranslation("ESP Checks"), Flag = "PlayersExtra_Checks", Options = {"Wall Check", "Visible Check", "Forcefield Check", "Alive Check"}, Default = {"Alive Check"}})
+        Players_Extra:Toggle({Name = Languages:GetTranslation("Use Display Name"), Flag = "PlayersExtra_DisplayName"})
+        Players_Extra:Slider({Name = Languages:GetTranslation("Name Length"), Flag = "PlayersExtra_NameLength", Default = 36, Minimum = 2, Maximum = 36, MaximumText = 35, Decimals = 1, Disable = {"Maximum", 2, 36}, Ending = "c"})
+        Players_Extra:Dropdown({Flag = "PlayersExtra_NameCase", Options = {"Normal", "Uppercase", "Lowercase"}})
+        Players_Extra:Slider({Name = Languages:GetTranslation("ESP Fade Out"), Flag = "PlayersExtra_FadeOut", Default = 400, Minimum = 0, Maximum = 2501, MaximumText = 2500, Decimals = 1, Disable = {"Disabled", 0, 2501}, Ending = "ms"})
+        Players_Extra:Dropdown({Name = Languages:GetTranslation("Distance Measurement"), Flag = "PlayersExtra_DistanceMeasurement", Max = 8, Options = {"Studs", "Meters", "Centimeters", "Kilometers", "Millimeters", "Micrometers", "Inches", "Miles", "Nautical Miles", "Yards", "Feet"}})
+    end
+    do -- Visuals
+        --local Player_Visuals = Visuals2:Section({Name = Languages:GetTranslation("Visuals"), Fill = true, Side = "Left"})
+        local Local_Visuals = Visuals2:Section({Name = Languages:GetTranslation("Local Visuals"), Fill = false, Side = "Left"})
+        local PredictionDot_Section, PredictionLine_Section, PredictionCharacter_Section = Legit:MultiSection({Sections = {"Pred. Dot", "Pred. Line", "Pred. Char"}, Side = "Right", Fill = true})
+		local World_Visuals = Visuals2:Section({Name = Languages:GetTranslation("World Visuals"), Fill = true, Side = "Left"})
+        local MascotVis = Visuals2:Section({Name = Languages:GetTranslation("Player"), Fill = false, Side = "Right"})
+        local ExtraVisuals = Visuals2:Section({Name = Languages:GetTranslation("Extra"), Fill = true, Side = "Right"})
+
+        Local_Visuals:Toggle({Name = Languages:GetTranslation("Bullet Tracers"), Flag = "BulletTracer_Enabled"})
+        Local_Visuals:Slider({Name = Languages:GetTranslation("Transparency"), Flag = "BulletTracer_Transparency", Default = 100, Minimum = 0, Maximum = 100, Ending = "%"})
+        Local_Visuals:Colorpicker({Name = Languages:GetTranslation("Bullet Tracer Color"), Default = Color3.fromRGB(0, 255, 0), Alpha = 0.25, Info = "Bullet Tracer Color", Flag = "BulletTracer_Color"})
+
+        Local_Visuals:Toggle({Name = Languages:GetTranslation("Weapon Chams"), Flag = "Weapon_Visuals"})
+        Local_Visuals:Dropdown({Name = Languages:GetTranslation("Weapon Chams Material"), Flag = "Weapon_VisualsMaterial", Options = {"Plastic", "ForceField", "Neon"}, Default = "ForceField"})
+        Local_Visuals:Colorpicker({Name = Languages:GetTranslation("Weapon Chams Color"), Default = Color3.fromRGB(0, 255, 0), Alpha = 0.25, Info = "Weapon Chams Color", Flag = "Weapon_VisualsColor"})
+
+        
+		World_Visuals:Toggle({Name = Languages:GetTranslation("Custom Skybox"), Flag = "Skybox_Enabled"})
+		World_Visuals:Dropdown({Name = Languages:GetTranslation("Skybox Type"), Flag = "Skybox_Type", Default = "Nebula", Options = {"Nebula"}})
+		World_Visuals:Button({Name = Languages:GetTranslation("Update"), Callback = function()
+			if Sky ~= nil then
+                if Flags['Skybox_Type']:Get() == "Nebula" then
+					game:GetService("Lighting").ClockTime = "12"
+					Sky.SkyboxBk = "rbxassetid://6277563515"
+					Sky.SkyboxDn = "rbxassetid://6277565742"
+					Sky.SkyboxFt = "rbxassetid://6277567481"
+					Sky.SkyboxLf = "rbxassetid://6277569562"
+					Sky.SkyboxRt = "rbxassetid://6277583250"
+					Sky.SkyboxUp = "rbxassetid://6277586065"
+				end
+            end
+		end})
+
+        World_Visuals:Toggle({Name = Languages:GetTranslation("Brightness"), Flag = "Brightensese", Callback = function(value)
+            dddd = value
+            if dddd == false then
+                game:GetService("Lighting").Brightness = 1.5
+            elseif dddd == true then
+                game:GetService("Lighting").Brightness = Flags['BrightnessAmountt']:Get()
+            end
+        end})
+
+        World_Visuals:Slider({Name = Languages:GetTranslation("Amount"), Flag = "BrightnessAmountt", Default = 0, Minimum = 0, Maximum = 100, Decimals = 0.01, Callback = function(value)
+            if Flags["Brightensese"]:Get() == true then
+            game:GetService("Lighting").Brightness = value
+            end
+        end})
+
+        World_Visuals:Toggle({Name = Languages:GetTranslation("Ambience"), Flag = "AmbieneceEnabled", Callback = function(value)
+            dddd = value
+            if dddd == false then
+            game:GetService("Lighting").Ambient = Color3.fromRGB(0, 0, 0)
+            elseif dddd == true then
+            game:GetService("Lighting").Ambient = Flags['AmbienceColor']:Get()
+            end
+        end})
+
+        World_Visuals:Colorpicker({Name = Languages:GetTranslation("Ambience Color"), Default = Color3.fromRGB(255, 255, 255), Alpha = 0.25, Info = "Ambience Color", Flag = "AmbienceColor", Callback = function(value)
+            if Flags["AmbieneceEnabled"]:Get() == true then
+            game:GetService("Lighting").Ambient = value
+            end
+        end})
+
+        World_Visuals:Toggle({Name = Languages:GetTranslation("Clock Time"), Flag = "ClockTime_Enabled", Callback = function(value)
+            dddd = value
+            if dddd == false then
+                game:GetService("Lighting").ClockTime = 2
+            elseif dddd == true then
+                game:GetService("Lighting").ClockTime = Flags["ClockckTime"]:Get()
+            end
+        end})
+
+        World_Visuals:Slider({Name = Languages:GetTranslation("Time"), Flag = "ClockckTime", Default = 13, Minimum = 0, Maximum = 24, Ending = "hr", Callback = function(value)
+            if Flags["ClockTime_Enabled"]:Get() == true then
+                game:GetService("Lighting").ClockTime = value
+            end
+        end})
+
+        World_Visuals:Toggle({Name = Languages:GetTranslation("Shadows"), Default = true, Flag = "ShadowsToggle", Callback = function(value)
+            game:GetService("Lighting").GlobalShadows = value
+        end})
+
+        MascotVis:Toggle({Name = Languages:GetTranslation("FOV Changer"), Flag = "FvovCanger", Callback = function(value)
+            dddd = value
+            if dddd == false then
+            game:GetService("Workspace").Camera.FieldOfView = 70
+            elseif dddd == true then
+            game:GetService("Workspace").Camera.FieldOfView = Flags['Fvoaocamount']:Get()
+            end
+        end})
+
+        MascotVis:Slider({Name = Languages:GetTranslation("FOV Amount"), Flag = "Fvoaocamount", Default = 70, Minimum = 0, Maximum = 120, Callback = function(value)
+            if Flags["FvovCanger"]:Get() == true then
+            game:GetService("Workspace").Camera.FieldOfView = value
+            end
+        end})
+
+
+
+
+
+
+
+
+        
+        ExtraVisuals:Toggle({Name = Languages:GetTranslation("Enable ekitten"), Flag = "MascotToggle", Callback = function(value)
+            fram.Visible = value
+        end})
+        ExtraVisuals:Toggle({Name = Languages:GetTranslation("Streamer Mode"), Flag = "Streamermode_Enabled", Callback = function()
+            repeat wait() until game:IsLoaded()
+            getgenv().settings = {
+                ['HiddenName'] = "Dahoodgoat5"
+            }
+            
+            local Player = game.Players.LocalPlayer
+            local function HideName(oldName)
+                for Index, Value in next, game:GetDescendants() do 
+                    if Value.ClassName == "TextLabel" or Value.ClassName == "TextButton" then 
+                        
+                        local str = Value.Text:gsub(oldName,settings.HiddenName)
+                        str = str:gsub(Player.Name,settings.HiddenName)
+                        str = str:gsub(Player.DisplayName, settings.HiddenName)
+                        Value.Text = str 
+                        Value:GetPropertyChangedSignal("Text"):Connect(function()
+                            local str = Value.Text:gsub(Player.Name,settings.HiddenName)
+                            str = str:gsub(Player.DisplayName, settings.HiddenName)
+                            Value.Text = str 
+                        end)
+                    end
+                end
+            end
+            
+            
+            HideName(Player.Name)
+            
+            
+            game.DescendantAdded:Connect(function(Value)
+                if Value.ClassName == "TextLabel" or Value.ClassName == "TextButton" then 
+                    
+                    local str = Value.Text:gsub(Player.Name, settings.HiddenName)
+                    str = str:gsub(Player.DisplayName, settings.HiddenName)
+                    Value.Text = str 
+                    Value:GetPropertyChangedSignal("Text"):Connect(function()
+                        local str = Value.Text:gsub(Player.Name,settings.HiddenName)
+                        str = str:gsub(Player.DisplayName, settings.HiddenName)
+                        Value.Text = str 
+                    end)
+            
+                end
+            end)
+        end})
+
+        ExtraVisuals:Toggle({Name = Languages:GetTranslation("Low GFX"), Flag = "LowGFX_Enabled", Callback = function(value)
+            if value == true then
+            for _,v in pairs(workspace:GetDescendants()) do
+                if v.ClassName == "Part"
+                or v.ClassName == "SpawnLocation"
+                or v.ClassName == "WedgePart"
+                or v.ClassName == "Terrain"
+                or v.ClassName == "MeshPart" then
+                v.Material = "Plastic"
+                end
+                end
+            end
+        end})
+
+        ExtraVisuals:Toggle({Name = Languages:GetTranslation("Memory Spoofer"), Flag = "MemorySpoofer_Enabled", Callback = function()
+            local PerformanceStats = game:GetService("CoreGui"):WaitForChild("RobloxGui"):WaitForChild("PerformanceStats")
+ 
+            local MemLabel
+            local color,
+                color1,
+                color2,
+                color3,
+                color4,
+                color5,
+                color6,
+                color7,
+                color8,
+                color9,
+                color10,
+                color11,
+                color12,
+                color13,
+                color14,
+                color15,
+                color16,
+                color17,
+                color18,
+                color19
+            for I, Child in next, PerformanceStats:GetChildren() do
+                if Child.StatsMiniTextPanelClass.TitleLabel.Text == "Mem" then
+                    MemLabel = Child.StatsMiniTextPanelClass.ValueLabel
+                    color = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_0
+                    color1 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_1
+                    color2 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_2
+                    color3 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_3
+                    color4 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_4
+                    color5 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_5
+                    color6 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_6
+                    color7 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_7
+                    color8 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_8
+                    color9 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_9
+                    color10 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_10
+                    color11 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_11
+                    color12 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_12
+                    color13 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_13
+                    color14 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_14
+                    color15 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_15
+                    color16 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_16
+                    color17 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_17
+                    color18 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_18
+                    color19 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_19
+                    break
+                end
+            end
+            MemLabel:GetPropertyChangedSignal("Text"):Connect(
+                function()
+                    if Flags["MemorySpoofer_Enabled"]:Get() == true then
+                        MemLabel.Text = math.random(71000, 82000) / 100 .. " MB"
+                        color.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color1.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color2.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color3.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color4.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color5.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color6.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color7.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color8.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color9.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color10.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color11.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color12.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color13.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color14.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color15.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color16.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color17.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color18.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                        color19.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+                    end
+                end
+            )
+        end})
+
+ExtraVisuals:Toggle({Name = Languages:GetTranslation("Ping Spoofer"), Flag = "PingSpoofer_Enabled", Callback = function()
+        local PerformanceStats = game:GetService("CoreGui"):WaitForChild("RobloxGui"):WaitForChild("PerformanceStats")
+
+        local PingLabel
+        for I, Child in next, PerformanceStats:GetChildren() do
+        if Child.StatsMiniTextPanelClass.TitleLabel.Text == "Ping" then
+        PingLabel = Child.StatsMiniTextPanelClass.ValueLabel
+        color = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_0
+        color1 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_1
+        color2 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_2
+        color3 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_3
+        color4 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_4
+        color5 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_5
+        color6 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_6
+        color7 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_7
+        color8 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_8
+        color9 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_9
+        color10 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_10
+        color11 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_11
+        color12 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_12
+        color13 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_13
+        color14 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_14
+        color15 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_15
+        color16 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_16
+        color17 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_17
+        color18 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_18
+        color19 = Child.PS_AnnotatedGraph.PS_BarFrame.Bar_19
+        break
+    end
+end
+PingLabel:GetPropertyChangedSignal("Text"):Connect(
+    function()
+        if Flags["MemorySpoofer_Enabled"]:Get() == true then
+            local textrandom = math.random(32000, 51000) / 100
+            PingLabel.Text = textrandom .. " ms"
+            color.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color1.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color2.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color3.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color4.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color5.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color6.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color7.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color8.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color9.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color10.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color11.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color12.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color13.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color14.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color15.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color16.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color17.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color18.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            color19.BackgroundColor3 = Color3.fromRGB(211, 88, 33)
+            if game.PlaceId == 9825515356 then
+                game:GetService("ReplicatedStorage").MainEvent:FireServer("GetPing", textrandom)
+            end
+        end
+    end
+)
+end})
+
+        MascotVis:Toggle({Name = Languages:GetTranslation("Headless Toggle"), Flag = "HeadlessToggle", Callback = function(value)
+            if value == true then
+                game.Players.LocalPlayer.Character.Head.Transparency = 1
+                game.Players.LocalPlayer.Character.Head.Transparency = 1
+                for i,v in pairs(game.Players.LocalPlayer.Character.Head:GetChildren()) do
+                if (v:IsA("Decal")) then
+                v.Transparency = 1
+                end
+                end
+            elseif value == false then
+            game.Players.LocalPlayer.Character.Head.Transparency = 0
+            game.Players.LocalPlayer.Character.Head.Transparency = 0
+            for i,v in pairs(game.Players.LocalPlayer.Character.Head:GetChildren()) do
+            if (v:IsA("Decal")) then
+            v.Transparency = 0
+            end
+            end
+        end
+    end})
+
+    MascotVis:Toggle({Name = Languages:GetTranslation("Left Korblox"), Flag = "LeftKorblox_Enabled", Callback = function(value)
+        if value == true then
+            game:GetService("Players").LocalPlayer.Character.LeftFoot.MeshId = "http://www.roblox.com/asset/?id=902942077"
+            game:GetService("Players").LocalPlayer.Character.LeftFoot.Transparency = 1
+            game:GetService("Players").LocalPlayer.Character.LeftLowerLeg.MeshId = "http://www.roblox.com/asset/?id=902942101"
+            game:GetService("Players").LocalPlayer.Character.LeftLowerLeg.TextureID = "http://roblox.com/asset/?id=902842271"
+            game:GetService("Players").LocalPlayer.Character.LeftUpperLeg.MeshId = "http://www.roblox.com/asset/?id=902942082"
+            game:GetService("Players").LocalPlayer.Character.LeftUpperLeg.TextureID = "http://roblox.com/asset/?id=902842271"
+        end
+    end})
+
+    MascotVis:Toggle({Name = Languages:GetTranslation("Right Korblox"), Flag = "RightKorblox_Enabled", Callback = function(value)
+        if value == true then
+            game:GetService("Players").LocalPlayer.Character.RightFoot.MeshId = "http://www.roblox.com/asset/?id=902942089"
+            game:GetService("Players").LocalPlayer.Character.RightFoot.Transparency = 1
+            game:GetService("Players").LocalPlayer.Character.RightLowerLeg.MeshId = "http://www.roblox.com/asset/?id=902942093"
+            game:GetService("Players").LocalPlayer.Character.RightLowerLeg.Transparency = 1
+            game:GetService("Players").LocalPlayer.Character.RightUpperLeg.MeshId = "http://www.roblox.com/asset/?id=902942096"
+            game:GetService("Players").LocalPlayer.Character.RightUpperLeg.TextureID = "http://roblox.com/asset/?id=902843398"
+        end
+    end})
+
+MascotVis:Toggle({Name = Languages:GetTranslation("Faces Toggle"), Flag = "FacesToggle", Callback = function(value)
+    facexd = value
+end})
+
+    MascotVis:Dropdown({Flag = "PlayerFaces123", Options = {"None", "SSHF", "Playful Vampire", "Yum!", "Blizzard Beastmode", "Beastmode", "Red Glowing Eyes", "Green Glowing Eyes", "Prankster", "Red Tango"}, Callback = function(State)
+        if facexd == true and State == "SSHF" then
+            local L_409_ = game.Players.LocalPlayer.Character
+            local L_410_ = L_409_:WaitForChild("Head")
+            local L_411_ = L_410_:WaitForChild("face")
+            L_411_.Texture = "rbxassetid://494290547"
+        elseif facexd == true and State == "Playful Vampire" then
+            local L_415_ = game.Players.LocalPlayer.Character
+            local L_416_ = L_415_:WaitForChild("Head")
+            local L_417_ = L_416_:WaitForChild("face")
+            L_417_.Texture = "rbxassetid://2409281591"
+        elseif facexd == true and State == "Yum!" then
+            local L_415_ = game.Players.LocalPlayer.Character
+            local L_416_ = L_415_:WaitForChild("Head")
+            local L_417_ = L_416_:WaitForChild("face")
+            L_417_.Texture = "rbxassetid://26018945"
+        elseif facexd == true and State == "Blizzard Beastmode" then
+            local L_415_ = game.Players.LocalPlayer.Character
+            local L_416_ = L_415_:WaitForChild("Head")
+            local L_417_ = L_416_:WaitForChild("face")
+            L_417_.Texture = "rbxassetid://209712379"
+        elseif facexd == true and State == "Beastmode" then
+            local L_415_ = game.Players.LocalPlayer.Character
+            local L_416_ = L_415_:WaitForChild("Head")
+            local L_417_ = L_416_:WaitForChild("face")
+            L_417_.Texture = "rbxassetid://127959433"
+        elseif facexd == true and State == "Red Glowing Eyes" then
+            local L_415_ = game.Players.LocalPlayer.Character
+            local L_416_ = L_415_:WaitForChild("Head")
+            local L_417_ = L_416_:WaitForChild("face")
+            L_417_.Texture = "rbxassetid://179693472"
+        elseif facexd == true and State == "Green Glowing Eyes" then
+            local L_415_ = game.Players.LocalPlayer.Character
+            local L_416_ = L_415_:WaitForChild("Head")
+            local L_417_ = L_416_:WaitForChild("face")
+            L_417_.Texture = "rbxassetid://398676207"
+        elseif facexd == true and State == "Prankster" then
+            local L_415_ = game.Players.LocalPlayer.Character
+            local L_416_ = L_415_:WaitForChild("Head")
+            local L_417_ = L_416_:WaitForChild("face")
+            L_417_.Texture = "rbxassetid://20052028"
+        elseif facexd == true and State == "Red Tango" then
+            local L_415_ = game.Players.LocalPlayer.Character
+            local L_416_ = L_415_:WaitForChild("Head")
+            local L_417_ = L_416_:WaitForChild("face")
+            L_417_.Texture = "rbxassetid://629930519"
+        end
+    end})
+
+
+
+        --[[
+        Player_Visuals:Toggle({Name = Languages:GetTranslation("Toggle Aimviewer"), Flag = "AimViewer_Enabled"})
+        Player_Visuals:Colorpicker({Name = Languages:GetTranslation("Friendly Color"), Default = Color3.fromRGB(0,255,0), Alpha = 0.25, Info = "Friendly Aimviewer Color", Flag = "AimViewer_FriendlyCol"})
+        Player_Visuals:Colorpicker({Name = Languages:GetTranslation("Enemy Color"), Default = Color3.fromRGB(0, 255, 0), Alpha = 0.25, Info = "Enemy Aimviewer Color", Flag = "AimViewer_EnemyCol"})
+        Player_Visuals:Colorpicker({Name = Languages:GetTranslation("Priority Color"), Default = Color3.fromRGB(70, 143, 111), Alpha = 0.25, Info = "Priority Aimviewer Color", Flag = "AimViewer_PriorityCol"})
+        ]]--
+        PredictionDot_Section:Colorpicker({Name = Languages:GetTranslation("Prediction Dot Color"), Default = Color3.fromRGB(0, 255, 0), Alpha = 0.25, Info = "Prediction Dot Color", Flag = "PredictionDot_Color"})
+        PredictionDot_Section:Slider({Name = Languages:GetTranslation("Prediction Dot Scale"), Flag = "PredictionDot_Size", Default = 5, Minimum = 5, Maximum = 10.5, Decimals = 0.01, Ending = "%"})
+        PredictionDot_Section:Toggle({Name = Languages:GetTranslation("Prediction Dot Filled"), Flag = "PredictionDot_Filled"})
+        PredictionDot_Section:Slider({Name = Languages:GetTranslation("Prediction Dot Numsides"), Flag = "PredictionDot_Numsides", Default = 0, Minimum = 0, Maximum = 100.5, Decimals = 0.01, Ending = "%"})
+
+        PredictionLine_Section:Colorpicker({Name = Languages:GetTranslation("Prediction Line Color"), Default = Color3.fromRGB(0, 255, 0), Alpha = 0.25, Info = "Prediction Line Color", Flag = "PredictionLine_Color"})
+        PredictionLine_Section:Slider({Name = Languages:GetTranslation("Prediction Line Thickness"), Flag = "PredictionLine_Thickness", Default = 1.5, Minimum = 0, Maximum = 10.5, Decimals = 0.01, Ending = "%"})
+        PredictionLine_Section:Slider({Name = Languages:GetTranslation("Prediction Line Thickness"), Flag = "PredictionLine_Thickness", Default = 1.5, Minimum = 0, Maximum = 10.5, Decimals = 0.01, Ending = "%"})
+       
+        PredictionCharacter_Section:Colorpicker({Name = Languages:GetTranslation("Prediction Chams Color"), Default = Color3.fromRGB(0, 255, 0), Alpha = 0.25, Info = "Prediction Chams Color", Flag = "PredictionChams_Color"})
+        PredictionCharacter_Section:Dropdown({Name = Languages:GetTranslation("Prediction Chams Material"), Flag = "PredictionChams_Material", Options = {"Plastic", "ForceField", "Neon"}, Default = "ForceField"})
+
+
+    end
+    --
+    do -- Misc
+        local Rage_AimSection = Misc:Section({Name = Languages:GetTranslation("Other"), Fill = false, Side = "Right"})
+        local PredBreakerPage, DesyncPage = Misc:MultiSection({Sections = {"Prediction Changer", "Desync"}, Side = "Left", Fill = true})
+        local Autobuy_Page = Misc:Section({Name = Languages:GetTranslation("Auto Buy"), Side = "Right"})
+        local Troll_Page = Misc:Section({Name = Languages:GetTranslation("Troll"), Side = "Right"})
+        local Fakelag = Misc:Section({Name = Languages:GetTranslation("Network Exploits"), Side = "Right", Fill = true})
+
+        Rage_AimSection:Toggle({Name = Languages:GetTranslation("Auto Shoot"), Flag = "RageSection_AutoShoot"}):Keybind({Flag = "AutoShoot_Key", Default = Enum.KeyCode.Y, KeybindName = Languages:GetTranslation("Auto Shoot"), Mode = "Toggle",})
+        Rage_AimSection:Toggle({Name = Languages:GetTranslation("Auto Reload"), Flag = "RageSection_AutoReload"})
+        Rage_AimSection:Toggle({Name = Languages:GetTranslation("Auto Stomp"), Flag = "NoREcoilToggle", Callback = function(value)
+            while value == true do
+                wait(.05)
+                game.ReplicatedStorage.MainEvent:FireServer("Stomp")
+                end
+        end})
+        Rage_AimSection:Toggle({Name = Languages:GetTranslation("No Jump Cooldown"), Flag = "NoJumpCoodlown", Callback = function(value)
+            if value == true then
+        if not game.IsLoaded(game) then 
+        game.Loaded.Wait(game.Loaded);
+        end
+
+        local IsA = game.IsA;
+        local newindex = nil 
+
+    newindex = hookmetamethod(game, "__newindex", function(self, Index, Value)
+    if not checkcaller() and IsA(self, "Humanoid") and Index == "JumpPower" then 
+        return
+    end
+    
+        return newindex(self, Index, Value);
+    end)
+end
+end})
+Rage_AimSection:Toggle({Name = Languages:GetTranslation("No Recoil"), Flag = "NoREcoilToggle", Callback = function(value)
+    if value == true then
+    local CurrentFocus = game:GetService("Workspace").CurrentCamera.CFrame
+    game:GetService("Workspace").CurrentCamera:Destroy()
+    local Instance = Instance.new("Camera", game:GetService("Workspace"))
+    Instance.CameraSubject = game:GetService("Players").LocalPlayer.Character.Humanoid
+    Instance.CameraType = Enum.CameraType.Custom
+    Instance.CFrame = CurrentFocus
+    end
+end})
+
+
+local players = game:GetService("Players")
+local uis = game:GetService("UserInputService")
+local runservice = game:GetService("RunService")
+local tweenservice = game:GetService("TweenService")
+local marketplaceservice = game:GetService("MarketplaceService")
+local textservice = game:GetService("TextService")
+local coregui = game:GetService("CoreGui")
+local httpservice = game:GetService("HttpService")
+
+local player = players.LocalPlayer
+local mouse = player:GetMouse()
+local camera = game.Workspace.CurrentCamera
+
+Rage_AimSection:Toggle({Name = Languages:GetTranslation("No Slowdown"), Flag = "NoSlowdown_Enabled", Callback = function(value)
+    runservice.Heartbeat:Connect(function()
+        nn_noslowdown = value
+        if nn_noslowdown then
+            local bodyeffectsBounderies = player.Character.BodyEffects.Movement:FindFirstChild('NoJumping') or player.Character.BodyEffects.Movement:FindFirstChild('ReduceWalk') or player.Character.BodyEffects.Movement:FindFirstChild('NoWalkSpeed')
+            if bodyeffectsBounderies then
+                bodyeffectsBounderies:Destroy()
+            end
+            if player.Character.BodyEffects.Reload.Value == true then
+                player.Character.BodyEffects.Reload.Value = false
+            end
+        end
+    end)
+end})
+
+Rage_AimSection:Toggle({Name = Languages:GetTranslation("Noclip"), Flag = "Noclip_Enabled",}):Keybind({Flag = "Noclip_Key", Default = Enum.KeyCode.N, KeybindName = Languages:GetTranslation("Noclip"), Mode = "Toggle",})
+
+runService.heartbeat:Connect(function()
+    if Flags["Noclip_Enabled"]:Get() == true and Flags['Noclip_Key']:Active() == true then
+            for i,v in pairs(game.Players.LocalPlayer.Character:GetChildren()) do
+                if v:IsA("BasePart") and v.CanCollide == true then
+                    v.CanCollide = false
+            elseif Flags['Noclip_Key']:Active() == false then
+                for i,v in pairs(game.Players.LocalPlayer.Character:GetChildren()) do
+                    if v:IsA("BasePart") and v.CanCollide == false then
+                        v.CanCollide = true
+                    end
+                end
+            end
+        end
+    end
+end)
+
+        PredBreakerPage:Toggle({Name = Languages:GetTranslation("Enabled"), Flag = "PredictionBreaker_Enabled"}):Keybind({Flag = "PredictionBreaker_Key", Default = Enum.KeyCode.V, KeybindName = Languages:GetTranslation("Prediction Breaker"), Mode = "Toggle"})
+        PredBreakerPage:Toggle({Name = Languages:GetTranslation("Use Prediction Breaker Preset"), Flag = "PredictionBreakerPreset_Enabled"})
+        PredBreakerPage:Dropdown({Name = Languages:GetTranslation("Preset Type"), Flag = "PredictionBreakerPreset_Type", Default = "Fluctuate", Options = {"Fluctuate", "Disabler", "Random"}})
+        PredBreakerPage:Slider({Name = Languages:GetTranslation("Velocity X"), Flag = "PredBreakerVelocity_X", Default = 0, Minimum = -600, Maximum = 600, Decimals = 0.1, Ending = "%"})
+        PredBreakerPage:Slider({Name = Languages:GetTranslation("Velocity Y"), Flag = "PredBreakerVelocity_Y", Default = 0, Minimum = -600, Maximum = 600, Decimals = 0.1, Ending = "%"})
+        PredBreakerPage:Slider({Name = Languages:GetTranslation("Velocity Z"), Flag = "PredBreakerVelocity_Z", Default = 0, Minimum = -600, Maximum = 600, Decimals = 0.1, Ending = "%"})
+
+        Fakelag:Toggle({Name = Languages:GetTranslation("Fake Lag Enabled"), Flag = "Cripwalk_Enabled"})
+        Fakelag:Slider({Name = Languages:GetTranslation("Fake Lag Ticks"), Flag = "Cripwalk_Ticks", Default = 1, Minimum = 1, Maximum = 50, Decimals = 1, Ending = ""})
+        Fakelag:Toggle({Name = Languages:GetTranslation("Fake Lag 2 Enabled"), Flag = "Physics_Sendrate", Callback = function(state)
+            if state == false then
+                setfflag("S2PhysicsSenderRate",  15)
+            else
+                setfflag("S2PhysicsSenderRate",  Flags['PhysSendrate']:Get() or 15)
+            end
+        end})
+        Fakelag:Slider({Name = Languages:GetTranslation("Fake Lag 2 Rate"), Flag = "PhysSendrate", Default = 15, Minimum = 0, Maximum = 15, Decimals = 1, Ending = "", Callback = function(value)
+            if Flags['Physics_Sendrate']:Get() == true then
+                setfflag("S2PhysicsSenderRate",  value)
+                print("SET PHYSICS SENDRATE TO ", tostring(value))
+            end
+        end})
+
+
+        DesyncPage:Toggle({Name = Languages:GetTranslation("Enabled"), Flag = "Desync_Enabled"}):Keybind({Flag = "Desync_Key", Default = Enum.KeyCode.T, KeybindName = Languages:GetTranslation("Desync"), Mode = "Toggle"})
+        DesyncPage:Toggle({Name = Languages:GetTranslation("Use Desync Preset"), Flag = "DesyncPreset_Enabled"})
+        DesyncPage:Dropdown({Name = Languages:GetTranslation("Preset Type"), Flag = "DesyncPreset_Type", Default = "Fluctuate", Options = {"Fluctuate", "Spin", "Random", "Switch", "Up", "Down", "Jitter"}})
+        DesyncPage:Slider({Name = Languages:GetTranslation("Velocity X"), Flag = "DesyncVelocity_X", Default = 0, Minimum = -6000, Maximum = 6000, Decimals = 0.1, Ending = "%"})
+        DesyncPage:Slider({Name = Languages:GetTranslation("Velocity Y"), Flag = "DesyncVelocity_Y", Default = 0, Minimum = -6000, Maximum = 6000, Decimals = 0.1, Ending = "%"})
+        DesyncPage:Slider({Name = Languages:GetTranslation("Velocity Z"), Flag = "DesyncVelocity_Z", Default = 0, Minimum = -6000, Maximum = 6000, Decimals = 0.1, Ending = "%"})
+
+
+        Autobuy_Page:Toggle({Name = Languages:GetTranslation("Enabled"), Flag = "Autobuy_Enabled"})
+        Autobuy_Page:Multibox({Name = Languages:GetTranslation("Item Selection"), Flag = "Item_Selection", Options = {"Revolver", "Revolver Ammo", "Double-Barrel", "Double-Barrel Ammo", "Vest"}, Default = {"Revolver", "Revolver Ammo"}, Minimum = 1})
+        Autobuy_Page:Slider({Name = Languages:GetTranslation("Ammo Buy Amount"), Flag = "Autobuy_AmmoAmt", Default = 1, Minimum = 1, Maximum = 20, Decimals = 1, Ending = ""})
+
+        Troll_Page:Toggle({Name = Languages:GetTranslation("Chat Spam"), Flag = "ChatSpam_Enabled"})
+        Troll_Page:Dropdown({Name = Languages:GetTranslation("Chat Type"), Flag = "ChatSpam_Type", Default = "LuckyHub", Options = {"LuckyHub", "Fulcrum", "Troll", "Chinese", "Russian"}})
+        Troll_Page:Slider({Name = Languages:GetTranslation("Chat Spam Delay"), Flag = "ChatSpam_Delay", Default = 3, Minimum = 2, Maximum = 10, Decimals = 1, Ending = "s"})
+
+    end
+    --
+    do -- Settings
+        Settings_PlayerList = Settings:PlayerList({})
+        playerlistIndividualTweak = Settings:Section({Name = "NaN Settings", Wide=1})
+
+        local Playerlist_TweaksSection = Settings:Section({Name = "Playerlist Settings", Wide=1})
+
+        pListMistToggle = playerlistIndividualTweak:Toggle({Name = Languages:GetTranslation("Aimviewer"), Callback = function(State)
+            if State == true and Settings_PlayerList:GetSelection()[1] ~= nil then
+                if not isAimviewerTarget(Settings_PlayerList:GetSelection()[1]) then
+                    table.insert(aimviewerTargets, {Settings_PlayerList:GetSelection()[1]})
+                end
+            else
+                if isAimviewerTarget(Settings_PlayerList:GetSelection()[1]) then
+                    removeAimviewerTarget(Settings_PlayerList:GetSelection()[1])
+                end
+            end
+        end})
+        playerlistIndividualTweak:ButtonHolder({Buttons = {{"Goto", function() 
+        if Settings_PlayerList:GetSelection() ~= nil then
+            local trg = Settings_PlayerList:GetSelection()[1]
+            if trg.Character and trg.Character:FindFirstChild("HumanoidRootPart") ~= nil then
+                if client and clientCharacter then
+                    client.Character:FindFirstChild("HumanoidRootPart").CFrame = trg.Character:GetPivot()
+                end
+            end
+        end
+        end}, {"Attach To", function()
+            if Settings_PlayerList:GetSelection() ~= nil then
+                local trg = Settings_PlayerList:GetSelection()[1]
+                if trg.Character and trg.Character:FindFirstChild("HumanoidRootPart") ~= nil then
+                    game:GetService("RunService").Stepped:Connect(function()
+                            client.Character:FindFirstChild("HumanoidRootPart").CFrame = trg.Character:GetPivot()
+                        end)
+                    end
+                end
+        end}}})
+
+        Playerlist_TweaksSection:Dropdown({Name = Languages:GetTranslation("Player Flag Type"), Flag = "PlayerCheckType", Default = "Antilocking", Options = {"Antilocking", "Display Name"}})
+        Playerlist_TweaksSection:Slider({Name = Languages:GetTranslation("Antilock detect threshold"), Flag = "Resolver_Threshold", Default = 5, Minimum = 1, Maximum = 10, Decimals = .1, Ending = " Studs"})
+        Playerlist_TweaksSection:Toggle({Name = Languages:GetTranslation("Auto resolve Antilockers"), Flag = "Resolver_Auto"})
+        PlayerListExport = Playerlist_TweaksSection:TextBox({Default = "", Maximum = 255})
+        Playerlist_TweaksSection:ButtonHolder({Buttons = {{"Import Playerlist", function() 
+            if #PlayerListExport:Get() > 2 then
+                local realStringWth = syn.crypt.base64.decode(PlayerListExport:Get()):split(",")
+                for _, ent in next, realStringWth do
+                    local realCoolString = ent:split(":")
+                    local userid = tonumber(realCoolString[1])
+                    local find = nil
+                    for idx, player in next, Settings_PlayerList.players do
+                        if player[1].UserId == userid then
+                            find = idx
+                        end
+                    end
+                    if find ~= nil then
+                        library.Relations[userid] = realCoolString[2]
+                        Settings_PlayerList.players[find][4] = realCoolString[2]
+                        Settings_PlayerList:UpdateScroll()
+                    end
+                end
+            end
+        end}, {"Export Playerlist", function() 
+            local stringstringstring = ""
+            for idx, rel in next, library.Relations do
+                stringstringstring = tostring(idx)..":"..rel..","..stringstringstring
+            end
+            setclipboard(syn.crypt.base64.encode(stringstringstring:sub(1, #stringstringstring - 1)))
+        end}}})
+
+
+
+    end
+    --
+    do -- Config
+        local Config_Menu = Config:Section({Name = Languages:GetTranslation("Menu")})
+        local Config_Configuration = Config:Section({Name = Languages:GetTranslation("Configuration"), Side = "Right"})
+        local Config_Theme = Config:Section({Name = Languages:GetTranslation("Theme")})
+        local Config_Load = Config:Section({Name = Languages:GetTranslation("Load"), Side = "Right"})
+        local Config_GInfo = Config:Section({Name = Languages:GetTranslation("Game Info"), Fill = true, Side = "Right"})
+
+        local Config_Extra = Config:Section({Name = Languages:GetTranslation("Extra"), Fill = true})
+        --
+        Config_Menu:Keybind({Name = Languages:GetTranslation("Toggle"), Flag = "ConfigMenu_MenuToggle", Default = Enum.KeyCode.RightControl, KeybindName = Languages:GetTranslation("Menu Key"), Mode = "Always", Callback = function(Input, Active) Window.uibind = Input end})
+        --
+        Config_Configuration:List({Flag = "ConfigConfiguration_Box", Options = LuckyHub.Configs}) 
+        Config_Configuration:TextBox({Flag = "ConfigConfiguration_Name", Name = Languages:GetTranslation("Config Name"), Default = "", Max = 20, PlaceHolder = "Config Name", Callback = function(Text) end})
+        Config_Configuration:ButtonHolder({Buttons = {{"Create", function() Library:PerformConfigAction(Flags["ConfigConfiguration_Name"]:Get(), "Save") end}, {"Delete", function() Library:PerformConfigAction(Flags["ConfigConfiguration_Box"]:Get(), "Delete") end}}})
+        Config_Configuration:ButtonHolder({Buttons = {{"Load", function() Library:PerformConfigAction(Flags["ConfigConfiguration_Box"]:Get(), "Load") end}, {"Save", function() Library:PerformConfigAction(Flags["ConfigConfiguration_Box"]:Get(), "Save") end}}})
+        Config_Configuration:Button({Name = Languages:GetTranslation("Unload"), Callback = Window.Unload})
+        --
+
+        Config_Theme:Dropdown({Name = Languages:GetTranslation("Theme"), Flag = "ConfigTheme_Theme", Default = "Default", Max = 8, Options = utility:GetTableIndexes(Themes, true)})
+        Config_Theme:Button({Name = Languages:GetTranslation("Load"), Callback = function() Library:LoadTheme(Flags.ConfigTheme_Theme:Get()) end})
+        Config_Theme:Colorpicker({Name = Languages:GetTranslation("Accent"), Flag = "ConfigTheme_Accent", Default = Color3.fromRGB(39, 206, 64), Callback = function(Color) Library:UpdateColor("Accent", Color) end})
+        Config_Theme:Colorpicker({Name = Languages:GetTranslation("Light Contrast"), Flag = "ConfigTheme_LightContrast", Default = Color3.fromRGB(51, 51, 51), Callback = function(Color) Library:UpdateColor("LightContrast", Color) end})
+        Config_Theme:Colorpicker({Name = Languages:GetTranslation("Dark Contrast"), Flag = "ConfigTheme_DarkContrast", Default = Color3.fromRGB(38, 38, 38), Callback = function(Color) Library:UpdateColor("DarkContrast", Color) end})
+        Config_Theme:Colorpicker({Name = Languages:GetTranslation("Outline"), Flag = "ConfigTheme_Outline", Default = Color3.fromRGB(0, 0, 0), Callback = function(Color) Library:UpdateColor("Outline", Color) end})
+        Config_Theme:Colorpicker({Name = Languages:GetTranslation("Inline"), Flag = "ConfigTheme_Inline", Default = Color3.fromRGB(51, 51, 51), Callback = function(Color) Library:UpdateColor("Inline", Color) end})
+        Config_Theme:Colorpicker({Name = Languages:GetTranslation("Light Text"), Flag = "ConfigTheme_LightText", Default = Color3.fromRGB(255, 255, 255), Callback = function(Color) Library:UpdateColor("TextColor", Color) end})
+        Config_Theme:Colorpicker({Name = Languages:GetTranslation("Dark Text"), Flag = "ConfigTheme_DarkText", Default = Color3.fromRGB(215, 215, 215), Callback = function(Color) Library:UpdateColor("TextDark", Color) end})
+        Config_Theme:Colorpicker({Name = Languages:GetTranslation("Text Outline"), Flag = "ConfigTheme_TextBorder", Default = Color3.fromRGB(0, 0, 0), Callback = function(Color) Library:UpdateColor("TextBorder", Color) end})
+        Config_Theme:Colorpicker({Name = Languages:GetTranslation("Cursor Outline"), Flag = "ConfigTheme_CursorOutline", Default = Color3.fromRGB(0, 0, 0), Callback = function(Color) Library:UpdateColor("CursorOutline", Color) end})
+        Config_Theme:Dropdown({Name = Languages:GetTranslation("Accent Effect"), Flag = "ConfigTheme_AccentEffect", Default = "None", Options = {"None", "Rainbow", "Shift", "Reverse Shift"}, Callback = function(State) if State == "None" then Library:UpdateColor("Accent", Flags["ConfigTheme_Accent"]:Get()) end end})
+        Config_Theme:Slider({Name = Languages:GetTranslation("Effect Length"), Flag = "ConfigTheme_EffectLength", Default = 40, Maximum = 360, Minimum = 1, Decimals = 1})
+        --
+        Config_Load:Toggle({Name = Languages:GetTranslation("Show Menu"), Flag = "ConfigLoad_ShowMenu", Default = true})
+        Config_Load:Toggle({Name = Languages:GetTranslation("Auto Load Config"), Flag = "ConfigLoad_AutoLoad", Default = false})
+        --
+        Config_Extra:Toggle({Name = Languages:GetTranslation("Show Watermark"), Flag = "ConfigExtra_Watermark", Callback = function(State) Window.watermark:Update("Visible", State) end})
+        Config_Extra:Toggle({Name = Languages:GetTranslation("Show Keybinds"), Flag = "ConfigExtra_KBList", Callback = function(State) Window.keybindslist:Update("Visible", State) end})
+        Config_Extra:Toggle({Name = Languages:GetTranslation("Show Stats"), Flag = "ConfigExtra_StatusList", Callback = function(State) Window.statuslist:Update("Visible", State) end})
+
+        Config_GInfo:Label({Name = Languages:GetTranslation("Place ID : "..tostring(game.PlaceId))})
+        Config_GInfo:Label({Name = Languages:GetTranslation("User ID : "..tostring(game.Players.LocalPlayer.UserId))})
+
+        Config_GInfo:Button({Name = Languages:GetTranslation("Copy Discord Server Invite"), Callback = function() setclipboard("discord.gg/luckyhub") end})
+        Config_GInfo:Button({Name = Languages:GetTranslation("Copy Place ID"), Callback = function() setclipboard(game.PlaceId) end})
+        Config_GInfo:Button({Name = Languages:GetTranslation("Copy Job ID"), Callback = function() setclipboard(game.JobId) end})
+        Config_GInfo:Button({Name = Languages:GetTranslation("Rejoin Game"), Callback = function() game:GetService("TeleportService"):Teleport(game.PlaceId, game:GetService("Players").LocalPlayer) end})
+        Config_GInfo:Button({Name = Languages:GetTranslation("Copy Game Join Script"), Callback = function() setclipboard("Roblox.GameLauncher.joinGameInstance(".. game.PlaceId ..", \"".. game.JobId .."\")") end})
+    end
+end
+--
+Window.VisualPreview:SetPreviewState(false)
+
+Window:Initialize()
+Config:Show()
+--
+
+
+
+
+
+-- << Functions n stuffington >> --
+local sayMessage = function(msg, target) replicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(msg, target or "ALL") end
+
+
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    camera = workspace.CurrentCamera
+end)
+
+client:GetPropertyChangedSignal("Character"):Connect(function()
+    clientCharacter = client.Character
+end)
+
+--[[
+    <vector2> WTS(<vector3> position)
+]]--
+local WTS = function(position)
+    local screen = workspace.CurrentCamera:WorldToViewportPoint(position)
+    return Vector2.new(screen.x, screen.y)
+end
+
+--[[
+    <boolean> isAlive(<player> player)
+]]--
+local isAlive = function(player)
+    return (player and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character:FindFirstChild("HumanoidRootPart")) and true or false
+end
+
+--[[
+    <boolean> isOnScreen(<vector2> position)
+]]--
+local isOnScreen = function(position)
+    local vec, os = camera:WorldToScreenPoint(position)
+    return os == true
+end
+
+--[[
+    <boolean> isVisible(<player> player)
+]]--
+local isVisible = function(player)
+    if not isAlive(player) or not isAlive(client) then return false end
+    local raycastParameters = RaycastParams.new();
+    raycastParameters.FilterType = Enum.RaycastFilterType.Blacklist 
+    raycastParameters.FilterDescendantsInstances = {camera, player.Character, clientCharacter};
+    local direction = (player.Character.HumanoidRootPart.Position - camera.CFrame.Position);
+    local result = workspace:Raycast(camera.CFrame.Position, direction.Unit * direction.Magnitude, raycastParameters);
+
+    local resultInstance, resultPosition = result and result.Instance, result and result.Position 
+
+    if resultInstance and resultPosition then 
+        if not resultInstance:IsDescendantOf(player.Character) then 
+            return false 
+        end 
+    end
+    return true
+end
+
+--[[
+    <boolean> isInFov(<player> target)
+]]--
+local isInFov = function(target)
+    local screenPoint = camera:WorldToScreenPoint(target.Character:WaitForChild("HumanoidRootPart", math.huge).Position)
+    local vectorDistance = (Vector2.new(userInputService:GetMouseLocation().X, userInputService:GetMouseLocation().Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
+    local charDistance = Vector3.new(clientCharacter:WaitForChild("HumanoidRootPart", math.huge).Position - target.Character:WaitForChild("HumanoidRootPart", math.huge).Position).Magnitude
+
+    if vectorDistance < Flags['LegitAimAssist_FieldOfView']:Get() and isOnScreen(target.Character:WaitForChild("HumanoidRootPart", math.huge).Position) then
+        return true
+    end
+    return false
+end
+
+--[[
+    <player> getTarget()
+]]--
+local getTarget = function()
+
+    local conditions = Flags['LegitAimAssist_Conditions']:Get()
+    local targetSelection = Flags['LegitAimAssist_TargetPriority']:Get()
+    local targets = {}
+    if not isAlive(client) then return nil end
+    for _, player in next, players:GetPlayers() do
+        if player == client then continue end 
+        if not player or not player.Character then continue end
+        if Find(conditions, "Friend") then
+            if player:IsFriendsWith(client.UserId) then continue end
+        end
+
+        if Find(conditions, "Visible") then
+            if not isVisible(player) then continue end
+        end
+
+        local screenPoint = camera:WorldToScreenPoint(player.Character:WaitForChild("HumanoidRootPart", math.huge).Position)
+        local vectorDistance = (Vector2.new(userInputService:GetMouseLocation().X, userInputService:GetMouseLocation().Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
+        local charDistance = Vector3.new(clientCharacter:WaitForChild("HumanoidRootPart", math.huge).Position - player.Character:WaitForChild("HumanoidRootPart", math.huge).Position).Magnitude
+
+        if vectorDistance < Flags['LegitAimAssist_FieldOfView']:Get() and isOnScreen(player.Character:WaitForChild("HumanoidRootPart", math.huge).Position) then
+            table.insert(targets, {player, vectorDistance, charDistance})
+        end
+    end
+
+    local focusTarget = targets[1]
+
+    if targetSelection == "Closest to Character" then
+
+        for _, target in next, targets do
+            if target[3] == focusTarget[3] then continue end
+
+            if target[3] < focusTarget[3] then
+                focusTarget = target
+            end
+        end
+
+    elseif targetSelection == "Closest to Cursor" then
+        for _, target in next, targets do 
+            if target[2] == focusTarget[2] then continue end
+
+            if target[2] < focusTarget[2] then
+                focusTarget = target
+            end
+        end
+
+    elseif targetSelection == "Is Priority" then 
+        for _, target in next, targets do 
+            if library.Relations[target.UserId] == "Priority" then
+                return target
+            end
+        end
+        return targets[1]
+    else -- Lowest Health
+        for _, target in next, targets do
+            if target[1].Character:WaitForChild("Humanoid", math.huge).Health == focusTarget[1].Character:WaitForChild("Humanoid", math.huge).Health then continue end
+
+            if target[1].Character:WaitForChild("Humanoid", math.huge).Health < focusTarget[1].Character:WaitForChild("Humanoid", math.huge).Health then
+                focusTarget = target
+            end
+        end
+
+    end    
+    
+    if focusTarget ~= nil then return focusTarget[1] else return nil end
+
+end
+
+--[[
+    <boolean> isKnocked(player)
+]]--
+local isKnocked = function(plr)
+    if not isAlive(plr) then return end
+    if game.PlaceId == 9825515356 then
+        if plr.Character:FindFirstChild("BodyEffects") ~= nil then
+            return plr.Character:FindFirstChild("BodyEffects"):FindFirstChild("K.O").Value
+        end
+    end
+    return false
+end
+
+--[[
+    <part> closestPartToCursor(<player>)
+]]--
+local closestPartToCursor = function(player)
+
+    local targetParts = {}
+
+    for _, part in next, player.Character:GetChildren() do
+        if part:IsA("MeshPart") or part:IsA("BasePart") then
+            if Find(Flags["LegitAimAsisst_Aimbone"]:Get(), part.Name) and not Find(forbiddenParts, part.Name) then
+                local screenPoint = camera:WorldToScreenPoint(part.Position)
+                local vectorDistance = (Vector2.new(userInputService:GetMouseLocation().X, userInputService:GetMouseLocation().Y) - Vector2.new(screenPoint.X, screenPoint.Y)).Magnitude
+                table.insert(targetParts, {part, vectorDistance})
+            end
+        end
+    end 
+
+    local focusTarget = targetParts[1]
+
+    for _, part in next, targetParts do
+        if focusTarget[2] > part[2] then
+            focusTarget = part
+        end
+    end
+    return focusTarget[1]
+
+end
+
+--[[
+    <CFrame> getClosestPoint()
+]]--
+local getClosestPoint = function()
+    local Transform = currentAimpart.CFrame:pointToObjectSpace(client:GetMouse().Hit.Position) -- Transform into local space
+    local HalfSize = currentAimpart.Size * 0.5
+    return currentAimpart.CFrame * Vector3.new( -- Clamp & transform into world space
+        math.clamp(Transform.x, -HalfSize.x, HalfSize.x),
+        math.clamp(Transform.y, -HalfSize.y, HalfSize.y),
+        math.clamp(Transform.z, -HalfSize.z, HalfSize.z)
+    )
+end
+
+--[[
+    <void> clearTable(<table> tab)
+]]--
+local clearTable = function(tab)
+    for _, ent in next, tab do
+        ent = nil 
+    end
+end
+
+runService.heartbeat:Connect(function()
+    if Flags["Desync_Enabled"]:Get() == true and Flags['Desync_Key']:Active() == true then
+        if isAlive(client) then
+            oldvel = clientCharacter.HumanoidRootPart.Velocity
+            clientCharacter.HumanoidRootPart.Velocity = Vector3.new(Flags["DesyncVelocity_X"]:Get(), Flags["DesyncVelocity_Y"]:Get(), Flags["DesyncVelocity_Z"]:Get())
+            clientCharacter.HumanoidRootPart.CFrame = clientCharacter.HumanoidRootPart.CFrame * CFrame.Angles(0,0.0001,0)
+            runService.RenderStepped:Wait()
+            clientCharacter.HumanoidRootPart.Velocity = oldvel
+
+            if Flags["DesyncPreset_Enabled"]:Get() == true then
+                if Flags["DesyncPreset_Type"]:Get() == "Random" then
+
+                    Flags["DesyncVelocity_X"]:Set(math.random(-6000, 6000))
+                    Flags["DesyncVelocity_Y"]:Set(math.random(0, 6000))
+                    Flags["DesyncVelocity_Z"]:Set(math.random(-6000, 6000))
+
+                elseif Flags["DesyncPreset_Type"]:Get() == "Fluctuate" then
+                    if Flags["DesyncVelocity_X"]:Get() >= 6000 then
+                        desyncVelocityDirection = true
+                    elseif Flags["DesyncVelocity_X"]:Get() <= -6000 then
+                        desyncVelocityDirection = false
+                    end
+                    xVelAmt = nil
+                    if desyncVelocityAmount >= 0 then xVelAmt = 0 else xVelAmt = desyncVelocityAmount end
+                    Flags["DesyncVelocity_X"]:Set(desyncVelocityAmount)
+                    Flags["DesyncVelocity_Y"]:Set(xVelAmt)
+                    Flags["DesyncVelocity_Z"]:Set(desyncVelocityAmount)
+
+
+
+                    if desyncVelocityDirection then
+                        desyncVelocityAmount -= 1
+                    else
+                        desyncVelocityAmount += 1
+                    end
+
+                elseif Flags["DesyncPreset_Type"]:Get() == "Jitter" then
+
+                    Flags["DesyncVelocity_X"]:Set(1000)
+                    Flags["DesyncVelocity_Y"]:Set(-1000)
+                    Flags["DesyncVelocity_Z"]:Set(1000)
+
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    CFrame.new(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.Position) *
+                    CFrame.Angles(
+                        0,
+                        math.rad(10000) +
+                        math.rad((math.random(1, 2) == 1 and 5000 or -5000)),
+                        0
+                    )
+
+                elseif Flags["DesyncPreset_Type"]:Get() == "Spin" then
+
+                    Flags["DesyncVelocity_X"]:Set(16000)
+                    Flags["DesyncVelocity_Y"]:Set(16000)
+                    Flags["DesyncVelocity_Z"]:Set(16000)
+
+                game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, math.random(500), 0)
+
+                elseif Flags["DesyncPreset_Type"]:Get() == "Switch" then
+                    if desyncVelocityDirection then
+                        desyncVelocityDirection = false
+                        Flags["DesyncVelocity_X"]:Set(1000)
+                        Flags["DesyncVelocity_Z"]:Set(1000)
+                    else
+                        Flags["DesyncVelocity_X"]:Set(-1000)
+                        Flags["DesyncVelocity_Z"]:Set(-1000)
+                        desyncVelocityDirection = true
+                    end
+                elseif Flags["DesyncPreset_Type"]:Get() == "Up" then
+                    Flags["DesyncVelocity_X"]:Set(0)
+                    Flags["DesyncVelocity_Y"]:Set(math.random(150, 6000))
+                    Flags["DesyncVelocity_Z"]:Set(0)
+
+                elseif Flags["DesyncPreset_Type"]:Get() == "Down" then
+
+                    Flags["DesyncVelocity_X"]:Set(0)
+                    Flags["DesyncVelocity_Y"]:Set(math.random(-6000, 150))
+                    Flags["DesyncVelocity_Z"]:Set(0)
+                end
+            end
+
+        end
+    end 
+end)
+
+
+
+-- stuffington
+spawn(function()
+    while true do
+        fl_info = {}
+        if Flags['Cripwalk_Enabled']:Get() then  
+            if isAlive(client) then
+                fakelagTick += 1
+                fl_info[1] = clientCharacter.HumanoidRootPart.CFrame
+
+
+                if sleepNet == false then
+                    clientCharacter.HumanoidRootPart.CFrame = clientCharacter.HumanoidRootPart.CFrame + Vector3.new(555,0,5)
+                end
+                sethiddenproperty(clientCharacter.HumanoidRootPart, "NetworkIsSleeping", sleepNet)
+                clientCharacter.HumanoidRootPart.CFrame = fl_info[1]
+                if fakelagTick >= Flags['Cripwalk_Ticks']:Get() then
+                    sleepNet = false
+                    fakelagTick = 0
+                else
+                    sleepNet = true
+                end
+            end
+        end
+
+
+
+        if Flags["PredictionBreaker_Enabled"]:Get() == true and Flags['PredictionBreaker_Key']:Active() == true then
+            if isAlive(client) then
+                fakeVelocity = Vector3.new(Flags["PredBreakerVelocity_X"]:Get(), Flags["PredBreakerVelocity_Y"]:Get(), Flags["PredBreakerVelocity_Z"]:Get())
+                realVelocity = clientCharacter["HumanoidRootPart"].Velocity
+
+                for index, part in next, clientCharacter:GetChildren() do
+                    if part and part:IsA("BasePart") then 
+                        lastVelocities[part] = part.Velocity
+                        part.Velocity = fakeVelocity
+    
+                    end
+                end
+                
+                
+                runService.RenderStepped:wait()
+                
+                for index, part in next, clientCharacter:GetChildren() do
+                    if part and part:IsA("BasePart") then 
+                        part.Velocity = lastVelocities[part];
+
+                    end
+                end
+                clearTable(lastVelocities);
+                clearTable(lastCFrames);
+
+                if Flags["PredictionBreakerPreset_Enabled"]:Get() == true then
+                    if Flags["PredictionBreakerPreset_Type"]:Get() == "Random" then
+                        Flags["PredBreakerVelocity_X"]:Set(math.random(-600, 600))
+                        Flags["PredBreakerVelocity_Y"]:Set(math.random(-600, 600))
+                        Flags["PredBreakerVelocity_Z"]:Set(math.random(-600, 600))
+                    elseif Flags["PredictionBreakerPreset_Type"]:Get() == "Disabler" then
+                            Flags["PredBreakerVelocity_X"]:Set(0)
+                            Flags["PredBreakerVelocity_Y"]:Set(0)
+                            Flags["PredBreakerVelocity_Z"]:Set(0)
+                    elseif Flags["PredictionBreakerPreset_Type"]:Get() == "Fluctuate" then
+                        if Flags["PredBreakerVelocity_X"]:Get() >= 600 then
+                            velocityDirection = true
+                        elseif Flags["PredBreakerVelocity_X"]:Get() <= -600 then
+                            velocityDirection = false
+                        end
+                        Flags["PredBreakerVelocity_X"]:Set(velocityAmount)
+                        Flags["PredBreakerVelocity_Y"]:Set(velocityAmount)
+                        Flags["PredBreakerVelocity_Z"]:Set(velocityAmount)
+
+                        
+
+                        if velocityDirection then
+                            velocityAmount -= 1
+                        else
+                            velocityAmount += 1
+                        end
+
+                    end
+                end
+            end
+        end
+        
+        runService.Heartbeat:Wait()
+    end
+end)
+
+--[[
+    <void> drawFov()
+]]--
+local drawFov = function()
+    if Flags['FOV_Enabled']:Get() then
+        fovCircle.Visible = true
+        fovCircle.Thickness = Flags['FOV_Thickness']:Get()
+        fovCircle.NumSides = Flags['FOV_Numsides']:Get()
+        fovCircle.Radius = Flags['LegitAimAssist_FieldOfView']:Get() 
+        fovCircle.Filled = Flags['FOV_Filled']:Get() or false
+        fovCircle.Position = Vector2.new(userInputService:GetMouseLocation().X, userInputService:GetMouseLocation().Y)
+        fovCircle.Color = Flags['FOV_Color']:Get()["Color"] or Color3.fromRGB(0, 255, 0)
+        fovCircle.Transparency = tonumber(Flags['FOV_Color']:Get()["Transparency"])
+    else
+        fovCircle.Visible = false
+    end
+end
+
+--[[
+    <void> drawAimpoint()
+]]--
+local drawAimpoint = function()
+    if Flags['PredictionDot_Enabled']:Get() and currentAimpoint ~= nil and currentTarget ~= nil and currentAimpart ~= nil then
+        if Find(Flags['LegitAimAssist_DotType']:Get(), "Dot") then
+            predCircle.Visible = isOnScreen(currentAimpoint) 
+            predCircle.Position = WTS(currentAimpoint)
+            predCircle.Radius = Flags['PredictionDot_Size']:Get()
+            predCircle.Filled = Flags['PredictionDot_Filled']:Get()
+            predCircle.Color = Flags['PredictionDot_Color']:Get()
+            predCircle.Thickness = 1
+            predCircle.NumSides = Flags['PredictionDot_Numsides']:Get()
+        end
+        if Find(Flags['LegitAimAssist_DotType']:Get(), "Line") then
+            predLine.Visible = isOnScreen(currentAimpoint)
+            predLine.From = WTS(currentAimpart.Position)
+            predLine.To = WTS(currentAimpoint)
+            predLine.Color = Flags['PredictionLine_Color']:Get()
+            predLine.Thickness = Flags['PredictionLine_Thickness']:Get()
+            predLine.Transparency = 1
+            predLine.ZIndex = 1
+        end
+        if Find(Flags['LegitAimAssist_DotType']:Get(), "Character") then
+            if workspace:FindFirstChild("ServerChams") ~= nil then
+                for _, part in next, workspace:FindFirstChild("ServerChams"):GetChildren() do
+                    part.Color = Flags['PredictionChams_Color']:Get()
+                    part.Transparency = Flags['PredictionChams_Color']:GetTransparency()
+                    if Flags['Resolver_Enabled']:Get() == true or Flags['Resolver_Auto']:Get() == true or library.Relations[currentTarget.UserId] == "Resolve" then
+                        part.CFrame = currentTarget.Character:FindFirstChild(part.Name).CFrame + (currentTarget.Character.Humanoid.MoveDirection * Flags['LegitAimAssist_PredictionAmt']:Get()/10)
+                    else
+                        part.CFrame = currentTarget.Character:FindFirstChild(part.Name).CFrame + (Vector3.new(currentAimpart.Velocity.X * (Flags['LegitAimAssist_PredictionAmt']:Get()/100), currentAimpart.Velocity.Y * (Flags['LegitAimAssist_JumpOffset']:Get() / 100) , currentAimpart.Velocity.Z * (Flags['LegitAimAssist_PredictionAmt']:Get()/100)))
+                    end
+                    part.Material = Enum.Material[Flags['PredictionChams_Material']:Get()]
+                end
+            else
+                local fold = Instance.new("Folder", workspace)
+                fold.Name = "ServerChams"
+                for _, part in next, clientCharacter:GetChildren() do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        local pee = Instance.new("Part", fold)
+                        pee.Name = part.Name
+                        pee.Size = part.Size
+                        pee.Parent = fold
+                        pee.CanCollide = false
+                        pee.Transparency = 0.5
+                        pee.Anchored = true
+                        pee.Color = Flags['PredictionChams_Color']:Get()
+                        pee.Transparency = Flags['PredictionChams_Color']:GetTransparency()
+                        pee.Material = Enum.Material[Flags['PredictionChams_Material']:Get()]
+                    end
+                end
+            end
+        end
+    else
+        if workspace:FindFirstChild("ServerChams") ~= nil then
+            for _, part in next, workspace:FindFirstChild("ServerChams"):GetChildren() do
+                part.Transparency = 1
+            end
+        end
+        predLine.Visible = false
+        predCircle.Visible = false
+    end
+end
+
+
+--[[
+    <void> drawEsp()
+]]--
+
+local function SkeletonLine(from, to)
+    local Line = Drawing.new("Line")
+    Line.Visible = false
+    Line.From = Vector2.new(from.X, from.Y)
+    Line.To = Vector2.new(to.X, to.Y)
+    Line.Color = Color3.new(1,1,1)
+    Line.Thickness = 1.5
+    Line.Transparency = 1
+    return Line
+end
+
+local espTargets = {}
+for _, player in next, players:GetPlayers() do
+    if player == client then continue end
+    local nametag = Drawing.new("Text")
+    nametag.Text = ""
+    nametag.Size = 13
+    nametag.Visible = false
+    nametag.Font = 2
+    nametag.Center = true
+    table.insert(espTargets, {player, nametag})
+end
+players.PlayerAdded:Connect(function(player)
+    local nametag = Drawing.new("Text")
+    nametag.Text = ""
+    nametag.Size = 13
+    nametag.Visible = false
+    nametag.Font = 2
+    nametag.Center = true
+    table.insert(espTargets, {player, nametag})
+end)
+players.PlayerRemoving:Connect(function(player)
+    local newta = {}
+    for _,v in pairs(espTargets) do
+        if v[1] ~= player then
+            table.insert(newta, v)
+        else 
+            v[2].Visible = false
+        end
+    end
+    espTargets = newta
+end)
+local drawEsp = function()
+    for _, targ in next, espTargets do
+        local player = targ[1]
+        local nametag = targ[2]
+        if isAlive(player) then
+            if library.Relations[player.UserId] == "Resolve" or library.Relations[player.UserId] == "Priority" or library.Relations[player.UserId] == "Friend" or library.Relations[player.UserId] == "Enemy" then
+                nametag.Text = library.Relations[player.UserId]
+                nametag.Color = library.Relations[player.UserId] == "Resolve" and Color3.fromRGB(252, 186, 3) or library.Relations[player.UserId] == "Priority" and Color3.fromRGB(66, 30, 227) or library.Relations[player.UserId] == "Friend" and Color3.fromRGB(55, 200, 55) or library.Relations[player.UserId] == "Enemy" and Color3.fromRGB(227, 30, 53)      
+                nametag.Position = WTS(player.Character:GetPivot().p)
+                nametag.Visible = isOnScreen(player.Character:GetPivot().p)
+            else
+                nametag.Visible = false
+            end
+        end
+    end
+end
+
+--[[
+    <bool> isWeapon(<tool> tool)
+]]--
+local isWeapon = function(tool)
+    return tool:IsA("Tool") 
+end
+
+
+
+
+--[[
+    <void> autoShoot()
+]]--
+
+local autoShoot = function()
+    if Flags['RageSection_AutoShoot']:Get() == true and Flags['AutoShoot_Key']:Active() == true then
+        if currentTarget ~= nil and currentAimpoint ~= nil and clientCharacter and isAlive(client) then
+            if isVisible(currentTarget) then
+                if clientCharacter:FindFirstChildOfClass("Tool") ~= nil then
+                    local tool = client.Character:FindFirstChildOfClass("Tool") 
+                    if isWeapon(tool) then
+                        if currentTarget.Character:FindFirstChild("ForceField") == nil then
+                            tool:Activate()
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+--[[
+    <vector3> smoothVelocity(<player> Player)
+]]--
+
+
+
+--[[
+    <void> calculateAimpoint()
+]]--
+local calculateAimpoint = function()
+
+    if currentTarget ~= nil then
+        if currentAimpartOverride == nil then
+            currentAimpart = closestPartToCursor(currentTarget)
+        else
+            currentAimpart = currentTarget.Character:FindFirstChild(currentAimpartOverride)
+        end
+        if Flags['LegitAimAssist_AimMethod']:Get() == "Closest Point" then
+            currentAimpoint = getClosestPoint()
+        elseif Flags['LegitAimAssist_AimMethod']:Get() == "Closest Part" then
+            currentAimpoint = currentAimpart.Position
+        else
+            currentAimpoint = currentAimpart.Position + Vector3.new(math.random(-0.3,0.3), math.random(-0.1,0.1), math.random(-0.3, 0.3))
+        end
+
+        if Flags['Resolver_Enabled']:Get() == true and Flags['Resolver_EnabledKey']:Active() == true or library.Relations[currentTarget.UserId] == "Resolve" or Flags['Resolver_Auto']:Get() == true then
+            if Flags['Resolver_Type']:Get() == "Custom Prediction" then
+                currentAimpoint = currentTarget.Character:GetPivot() + (Vector3.new(velocities[currentTarget].X * Flags['LegitAimAssist_PredictionAmt']:Get()/100, velocities[currentTarget].Y * Flags['LegitAimAssist_JumpOffset']:Get() / 100, velocities[currentTarget].Z * Flags['LegitAimAssist_PredictionAmt']:Get()/100))
+            elseif Flags['Resolver_Type']:Get() == "LuckyHub" then
+                local smoof = smoothVelocity(currentTarget)
+                print("SMOOF:")
+                print(smoof)
+                print("END SMOOF")
+                currentAimpoint = currentTarget.Character:GetPivot().p + (Vector3.new(smoof.X * Flags['LegitAimAssist_PredictionAmt']:Get()/100, smoof.Y * Flags['LegitAimAssist_PredictionAmt']:Get()/100, smoof.Z * Flags['LegitAimAssist_PredictionAmt']:Get()/100))
+            else
+            -- Humanoid WalkTo pred
+                currentAimpoint = currentTarget.Character:GetPivot() + (currentTarget.Character.Humanoid.MoveDirection * Flags['LegitAimAssist_PredictionAmt']:Get()/10)
+            end
+        else
+            --aimPoint = currentTarget.Character:GetPivot().p + (currentTarget.Character.Humanoid.MoveDirection * .11)
+            currentAimpoint = currentAimpoint + (Vector3.new(currentAimpart.Velocity.X * (Flags['LegitAimAssist_PredictionAmt']:Get()/100), currentAimpart.Velocity.Y * (Flags['LegitAimAssist_JumpOffset']:Get() / 100) , currentAimpart.Velocity.Z * (Flags['LegitAimAssist_PredictionAmt']:Get()/100)))
+        end
+
+
+        if typeof(currentAimpoint) == "CFrame" then
+            currentAimpoint = currentAimpoint.p 
+        end
+
+    end
+end
+
+
+
+-- kys
+local oldValuePrios = {}
+local isOldSaved = function(plr)
+    for _, v in next, oldValuePrios do
+        if v[1] == plr then
+            return true
+        end
+    end
+    return false
+end
+local removeOldPrio = function(plr)
+    local relt = {}
+    for _, v in next, oldValuePrios do
+        if v[1] ~= plr then
+            table.insert(relt, v)
+        end
+    end
+    oldValuePrios = relt
+end
+
+local getOldSaved = function(plr)
+    for _, v in next, oldValuePrios do
+        if v[1] == plr then
+            return v[2]
+        end
+    end
+end
+
+function utility:GetTeam(plr)
+    -- get corresponding character
+    if not isAlive(plr) then return end
+    local targ = nil
+    for idx, pl in next, Settings_PlayerList.players do
+        if pl[1] == plr then
+            targ = idx
+        end
+    end
+
+
+    if Flags["PlayerCheckType"]:Get() == "Antilocking" then
+        local predictedPosition = plr.Character:GetPivot().p + (Vector3.new(plr.Character:WaitForChild("HumanoidRootPart").Velocity.X * (Flags['LegitAimAssist_PredictionAmt']:Get()/100), plr.Character:WaitForChild("HumanoidRootPart").Velocity.Y * (Flags['LegitAimAssist_JumpOffset']:Get() / 100) , plr.Character:WaitForChild("HumanoidRootPart").Velocity.Z * (Flags['LegitAimAssist_PredictionAmt']:Get()/100)))
+        local resolvedPosition = plr.Character:GetPivot().p + (Vector3.new(velocities[plr].X * Flags['LegitAimAssist_PredictionAmt']:Get()/100, velocities[plr].Y * Flags['LegitAimAssist_JumpOffset']:Get() / 100, velocities[plr].Z * Flags['LegitAimAssist_PredictionAmt']:Get()/100))
+        --if (plr.Character:GetPivot().p + (Vector3.new(plr.Character:WaitForChild("HumanoidRootPart").Velocity.X * (Flags['LegitAimAssist_PredictionAmt']:Get()/100), plr.Character:WaitForChild("HumanoidRootPart").Velocity.Y * (Flags['LegitAimAssist_JumpOffset']:Get() / 100) , plr.Character:WaitForChild("HumanoidRootPart").Velocity.Z * (Flags['LegitAimAssist_PredictionAmt']:Get()/100))) - plr.Character:GetPivot().p).Magnitude > Flags['Resolver_Threshold']:Get() then
+        if (predictedPosition - resolvedPosition).Magnitude >= Flags['Resolver_Threshold']:Get() then -- this method should work a lot better
+            Settings_PlayerList.players[targ][3] = "Antilocking"
+
+            if Flags['Resolver_Auto']:Get() == true then
+                if library.Relations[plr.UserId] == "Priority" or library.Relations[plr.UserId] == "Friend" and not isOldSaved(plr) then 
+                    table.insert(oldValuePrios, {plr, library.Relations[plr.UserId]})
+                end
+                library.Relations[plr.UserId] = "Resolve"
+            end
+
+        else
+            if Settings_PlayerList.players[targ][3] == "Antilocking" then
+                if isOldSaved(plr) then 
+                    print(isOldSaved(plr), plr.Name)
+                    print(getOldSaved(plr), plr.Name)
+                    library.Relations[plr.UserId] = getOldSaved(plr)
+                    removeOldPrio(plr)
+                else
+                    Settings_PlayerList.players[targ][3] = "None"
+                end
+                if library.Relations[plr.UserId] == "Resolve" then
+                    library.Relations[plr.UserId] = "None"
+                end
+            end
+        end
+	else
+		Settings_PlayerList.players[targ][3] = plr.DisplayName
+	end 
+end
+
+local xdt = {
+    (Languages:GetTranslation("%s - $NAME - ($PLACEID)")):format("LuckyHub"):gsub("$NAME", game.Players.LocalPlayer.DisplayName):gsub("$PLACEID", game.PlaceId)
+}
+
+spawn(function()
+    local counter = 1
+    local total_len = #xdt
+    local dir = false
+    while true do
+        Window:UpdateTitle(xdt[counter])
+        
+        if counter >= total_len then
+            dir = true
+        elseif counter <= 1 then
+            dir = false
+        end
+
+        if dir == true then
+            counter -= 1
+            
+        else
+            counter += 1
+        end
+
+        wait(0.2)
+    end 
+end)
+
+
+spawn(function()
+    while true do
+
+        for _, player in next, players:GetPlayers() do
+            if player == client then continue end
+            utility:GetTeam(player)
+        end
+        wait(1)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        
+        if Flags['LegitAimAssist_AutoPredictionAmt']:Get() == true then
+            if currentPing < 20 then
+                if Flags['LegitAimAssist_PredictionAmt']:Get() > 15.7 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()-.1) end
+                if Flags['LegitAimAssist_PredictionAmt']:Get() < 15.7 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()+.1) end
+            elseif currentPing < 30 then    
+                if Flags['LegitAimAssist_PredictionAmt']:Get() > 15.5 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()-.1) end
+                if Flags['LegitAimAssist_PredictionAmt']:Get() < 15.5 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()+.1) end
+            elseif currentPing < 40 then
+                if Flags['LegitAimAssist_PredictionAmt']:Get() > 14.5 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()-.1) end
+                if Flags['LegitAimAssist_PredictionAmt']:Get() < 14.5 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()+.1) end
+            elseif currentPing < 50 then
+                if Flags['LegitAimAssist_PredictionAmt']:Get() > 14.3 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()-.1) end
+                if Flags['LegitAimAssist_PredictionAmt']:Get() < 14.3 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()+.1) end
+            elseif currentPing < 60 then
+                if Flags['LegitAimAssist_PredictionAmt']:Get() > 14 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()-.1) end
+                if Flags['LegitAimAssist_PredictionAmt']:Get() < 14 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()+.1) end
+            elseif currentPing < 70 then
+                if Flags['LegitAimAssist_PredictionAmt']:Get() > 13.6 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()-.1) end
+                if Flags['LegitAimAssist_PredictionAmt']:Get() < 13.6 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()+.1) end
+            elseif currentPing < 80 then
+                if Flags['LegitAimAssist_PredictionAmt']:Get() > 13.3 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()-.1) end
+                if Flags['LegitAimAssist_PredictionAmt']:Get() < 13.3 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()+.1) end
+            elseif currentPing < 90 then
+                if Flags['LegitAimAssist_PredictionAmt']:Get() > 13 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()-.1) end
+                if Flags['LegitAimAssist_PredictionAmt']:Get() < 13 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()+.1) end
+            elseif currentPing < 105 then      
+                if Flags['LegitAimAssist_PredictionAmt']:Get() > 12.7 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()-.1) end
+                if Flags['LegitAimAssist_PredictionAmt']:Get() < 12.7 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()+.1) end
+            elseif currentPing < 110 then   
+                if Flags['LegitAimAssist_PredictionAmt']:Get() > 12.4 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()-.1) end
+                if Flags['LegitAimAssist_PredictionAmt']:Get() < 12.4 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()+.1) end
+            else 
+                if Flags['LegitAimAssist_PredictionAmt']:Get() > 12.0 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()-.1) end
+                if Flags['LegitAimAssist_PredictionAmt']:Get() < 12.0 then Flags['LegitAimAssist_PredictionAmt']:Set(Flags['LegitAimAssist_PredictionAmt']:Get()+.1) end
+            end
+        end
+
+        wait(.2)
+    end
+
+end)
+
+
+--[[
+    <boolean> isGun(<tool> tool)
+]]--
+local isGun = function(tool)
+    return tool:IsA("Tool") -- temporary
+end
+
+--[[
+    <void> teleportBuy(<model> weapon)
+]]--
+local teleportBuy = function(weapon)
+    if clientCharacter.Humanoid.Health >= 1 then
+        clientCharacter.HumanoidRootPart.CFrame = weapon:FindFirstChild("Head").CFrame
+        wait(.2)
+        if weapon.Name:match("Ammo") then
+            for i=1, Flags['Autobuy_AmmoAmt']:Get() do
+                fireclickdetector(weapon:FindFirstChild("ClickDetector"))
+                wait(.5)
+            end
+        else
+            fireclickdetector(weapon:FindFirstChild("ClickDetector"))
+            wait(.2)
+        end
+    end
+end
+
+--[[
+    <beam> misc:CreateBeam(<attachment> origin_att, <attachment> ending_att, <string> texture)
+]]--
+function misc:CreateBeam(origin_att, ending_att, texture)
+    local beam = Instance.new("Beam")
+    beam.Texture = texture or "http://www.roblox.com/asset/?id=446111271"
+    beam.TextureMode = Enum.TextureMode.Wrap
+    beam.TextureSpeed = 8
+    beam.LightEmission = 1
+    beam.LightInfluence = 1
+    beam.TextureLength = 12
+    beam.FaceCamera = true
+    beam.Enabled = true
+    beam.ZOffset = -1
+    beam.Transparency = NumberSequence.new(Flags['BulletTracer_Transparency']:Get() / 100, Flags['BulletTracer_Transparency']:Get() / 100)
+    beam.Color = ColorSequence.new(Flags['BulletTracer_Color']:Get(), Color3.new(0, 0, 0))
+    beam.Attachment0 = origin_att
+    beam.Attachment1 = ending_att
+    debris:AddItem(beam, 3)
+    debris:AddItem(origin_att, 3)
+    debris:AddItem(ending_att, 3)
+    
+    local speedtween = TweenInfo.new(5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, 0, false, 0)
+    tweenService:Create(beam, speedtween, { TextureSpeed = 2 }):Play()
+    beam.Parent = Workspace
+    table.insert(misc.beams, { beam = beam, time = tick() }) 
+    return beam
+end
+
+--[[
+    <void> misc:UpdateBeams()
+]]--
+function misc:UpdateBeams()
+    local time = tick()
+    for i = #self.beams, 1, -1 do
+        if self.beams[i].beam  then
+            local transp = 1 - (Flags['BulletTracer_Transparency']:Get() / 100)
+            local transparency = transp + (((time - self.beams[i].time) - 2) * (1 - transp))
+            self.beams[i].beam.Transparency = NumberSequence.new(transparency, transparency)
+            if transparency >= 1 then
+                table.remove(self.beams, i)
+            end
+        else
+            table.remove(self.beams, i)
+        end
+    end
+end
+
+-- Aimviewer bypassington
+client.CharacterAdded:Connect(function(char)
+    char.ChildAdded:Connect(function(child)
+
+        if child.Name == "Christmas_Sock" then
+            child:Destroy()
+        end
+
+        if isGun(child) then
+            if toolConnection[1] == nil then
+                toolConnection[1] = child 
+            end
+            if toolConnection[1] ~= child and toolConnection[2] ~= nil then 
+                toolConnection[2]:Disconnect()
+                toolConnection[1] = child
+            end
+
+            toolConnection[2] = child.Activated:Connect(function() 
+                
+                if Flags['RageSection_AutoReload']:Get() == true then
+                    if child:FindFirstChild("Ammo") ~= nil then
+
+                        if child["Ammo"].Value == 0 then
+                            shootRemote:FireServer("Reload", child)
+                        end
+                    end
+                end
+
+                if Flags['BulletTracer_Enabled']:Get() == true then
+                    -- for real da hood
+                    if game.PlaceId == 2788229376 then
+                        if child:FindFirstChild("Ammo") ~= nil then
+                            if child["Ammo"].Value == 0 then
+                                return
+                            end
+                        else
+                            return 
+                        end
+                    end
+
+                    local fromAttach = Instance.new("Attachment", workspace.Terrain)
+                    fromAttach.Position = clientCharacter:FindFirstChildOfClass("Tool"):FindFirstChild("Handle").Position 
+                    local toAttach = Instance.new("Attachment", workspace.Terrain)
+                    local pPos = nil
+                    if Flags['Prediction_EnabledKey']:Active() then 
+                        pPos = currentAimpoint 
+                    else 
+                        pPos = mouse.Hit.p
+                    end
+                    toAttach.Position = pPos
+                    local beam = misc:CreateBeam(fromAttach, toAttach)
+                end
+                if currentTarget ~= nil and currentAimpoint ~= nil and Flags['Prediction_EnabledKey']:Active() == true and Flags['Aimviewer_Bypass']:Get() == true then
+                    
+                    shootRemote:FireServer(shootArgument, currentAimpoint)
+                end
+    
+            end)
+        end
+    end)
+
+
+    if Flags['Autobuy_Enabled']:Get() == true and game.PlaceId == 2788229376 then
+        while not isAlive(client) or clientCharacter:FindFirstChild("ForceField") do
+            wait()
+        end
+        oldChar = clientCharacter.HumanoidRootPart.CFrame
+
+        if Find(Flags['Item_Selection']:Get(), "Revolver") and not client.Backpack:FindFirstChild("[Revolver]") then
+            teleportBuy(weaponShops["Revolver"])
+            wait(Flags['Autobuy_AmmoAmt']:Get() * 0.5 + 0.6)
+        end
+
+        if Find(Flags['Item_Selection']:Get(), "Revolver Ammo") and client.Backpack:FindFirstChild("[Revolver]") then
+            teleportBuy(weaponShops["Revolver Ammo"])
+            wait(Flags['Autobuy_AmmoAmt']:Get() * 0.5 + 0.6)
+        end
+
+        if Find(Flags['Item_Selection']:Get(), "Double-Barrel") and not client.Backpack:FindFirstChild("[Double-Barrel SG]") then
+            teleportBuy(weaponShops["Double-Barrel SG"])
+            wait(Flags['Autobuy_AmmoAmt']:Get() * 0.5 + 0.6)
+        end
+
+        if Find(Flags['Item_Selection']:Get(), "Double-Barrel Ammo") and client.Backpack:FindFirstChild("[Double-Barrel SG]") then
+            teleportBuy(weaponShops["Double-Barrel SG Ammo"])
+            wait(Flags['Autobuy_AmmoAmt']:Get() * 0.5 + 0.6)
+        end
+        clientCharacter.HumanoidRootPart.CFrame = oldChar
+
+    end
+end)
+
+client.Character.ChildAdded:Connect(function(child)
+
+    if child.Name == "Christmas_Sock" then
+        child:Destroy()
+    end
+
+    if isGun(child) then
+        if toolConnection[1] == nil then
+            toolConnection[1] = child 
+        end
+        if toolConnection[1] ~= child and toolConnection[2] ~= nil then 
+            toolConnection[2]:Disconnect()
+            toolConnection[1] = child
+        end
+
+        toolConnection[2] = child.Activated:Connect(function() 
+
+            if Flags['RageSection_AutoReload']:Get() == true then
+                if child:FindFirstChild("Ammo") ~= nil then
+                    if child["Ammo"].Value == 0 then
+                        shootRemote:FireServer("Reload", child)
+                    end
+                end
+            end
+
+            if Flags['BulletTracer_Enabled']:Get() == true then
+
+                -- for real da hood
+                if game.PlaceId == 2788229376 then
+                    if child:FindFirstChild("Ammo") ~= nil then
+                        if child["Ammo"].Value == 0 then
+                            return
+                        end
+                    else
+                        return 
+                    end
+                end
+
+                local fromAttach = Instance.new("Attachment", workspace.Terrain)
+                fromAttach.Position = clientCharacter:FindFirstChildOfClass("Tool"):FindFirstChild("Handle").Position 
+                local toAttach = Instance.new("Attachment", workspace.Terrain)
+                local pPos = nil
+                if Flags['Prediction_EnabledKey']:Active() then 
+                    pPos = currentAimpoint 
+                else 
+                    pPos = mouse.Hit.p
+                end
+                toAttach.Position = pPos
+                local beam = misc:CreateBeam(fromAttach, toAttach)
+            end
+            if currentTarget ~= nil and currentAimpoint ~= nil and Flags['Prediction_EnabledKey']:Active() == true and Flags['Aimviewer_Bypass']:Get() == true then
+             
+                shootRemote:FireServer(shootArgument, currentAimpoint)
+            end
+
+        end)
+    end
+end)
+
+
+
+for _, player in next, game:GetService("Players"):GetPlayers() do
+    if player == client then continue end
+    velocities[player] = Vector3.new(0,0,0)
+    positions[player] = Vector3.new(0,0,0)
+    oldVelocities[player] = Vector3.new(0,0,0)
+    if player:IsFriendsWith(client.UserId) == true then
+        library.Relations[player.UserId] = "Friend"  
+        print("FRIEND INGAME ", player.Name)
+    end
+end
+
+game:GetService("Players").PlayerAdded:Connect(function(plr)
+
+    velocities[plr] = Vector3.new(0,0,0)
+    positions[plr] = Vector3.new(0,0,0)
+    oldVelocities[plr] = Vector3.new(0,0,0)
+
+    if plr:IsFriendsWith(client.UserId) == true then
+       library.Relations[plr.UserId] = "Friend"  
+       print("FRIEND JOINED", plr.Name)
+    end
+
+end)
+
+-- thank you xaxa
+runService.Heartbeat:Connect(function(step)
+
+    currentPing = tonumber(string.format("%.3f", ping:GetValue()));
+
+
+    for index, player in next, players:GetPlayers() do 
+        if not isAlive(player) then continue end
+        local lastPosition = positions[player];
+        if not lastPosition or lastPosition == nil then 
+            lastPosition = player.Character:GetPivot().p    
+            continue
+        end 
+        local character = player.Character 
+        local rootPart = character and character:FindFirstChild("HumanoidRootPart");
+
+        velocities[player] = (player.Character:GetPivot().p - lastPosition) / step
+        positions[player] = player.Character:GetPivot().p
+        
+        oldVelocities[player] = rootPart.Velocity
+
+    end
+    
+    
+
+    if Flags['RageSection_CFrameKeybind']:Active() then
+        if isAlive(client) then 
+            if clientCharacter.Humanoid.MoveDirection.Magnitude > 0 then
+                for i=1, Flags['RageSection_CFrameSpeedMulti']:Get() do
+                    clientCharacter:TranslateBy(clientCharacter.Humanoid.MoveDirection)
+                end
+            end
+        end
+    end
+
+end)
+
+local ambience = function()
+    if Flags['AmbieneceEnabled']:Get() == false then
+        game:GetService("Lighting").Ambient = Color3.fromRGB(0, 0, 0)
+    elseif Flags['AmbieneceEnabled']:Get() == true then
+        game:GetService("Lighting").Ambient = Flags['AmbienceColor']:Get()
+        end
+    end
+
+--[[
+    <void> camlock()
+]]--
+local camlock = function()
+    if Flags['Camlock_Enabled']:Get() == true then
+        if Flags['Prediction_EnabledKey']:Active() then 
+            if camera then
+                if isAlive(client) then
+                    if currentAimpoint ~= nil and currentTarget ~= nil then
+                        if isKnocked(currentTarget) then return end
+                        if currentTarget.Character:FindFirstChild("ForceField") ~= nil then return end
+                        local Main = CFrame.new(camera.CFrame.p, currentAimpoint)
+                        camera.CFrame = camera.CFrame:Lerp(Main, Flags['LegitAimAssist_Smoothing']:Get() / 100, Enum.EasingStyle.Exponential, Enum.EasingDirection.InOut)
+                    end
+                end
+            end
+        end
+    end
+end
+
+--[[
+    <void> drawWeapons()
+]]--
+local drawWeapons = function() 
+    if Flags['Weapon_Visuals']:Get() == true then
+        if isAlive(client) then
+            if clientCharacter:FindFirstChildOfClass("Tool") then
+                for _, v in next, clientCharacter:FindFirstChildOfClass("Tool"):GetDescendants() do
+                    if v:IsA("MeshPart") then
+                        v.Material = Enum.Material[Flags['Weapon_VisualsMaterial']:Get()]
+                        v.Color = Flags['Weapon_VisualsColor']:Get()
+                    end
+                end
+            end
+        end
+    end
+end
+
+--[[
+    <void> circleStrafe(dt)
+]]--
+local ideez = 0
+local circleStrafe = function(dt)
+    if Flags['Circle_Strafe']:Get() == true and Flags['Circle_StrafeKey']:Active() == true then
+        if currentRotationing == nil then 
+            currentRotationing = getTarget()
+        end
+        if currentRotationing ~= nil then
+            if isAlive(client) and isAlive(currentRotationing) then
+                circleStrafeTargPos = nil
+                if Flags['Circle_StrafeType']:Get() == "Position" then
+                    circleStrafeTargPos = currentRotationing.Character.HumanoidRootPart.Position
+                elseif Flags['Circle_StrafeType']:Get() == "Prediction" then
+                    circleStrafeTargPos = currentRotationing.Character.HumanoidRootPart.Position + (Vector3.new(currentRotationing.Character.HumanoidRootPart.Velocity.X * (Flags['LegitAimAssist_PredictionAmt']:Get()/100), currentRotationing.Character.HumanoidRootPart.Velocity.Y * (Flags['LegitAimAssist_JumpOffset']:Get() / 100) , currentRotationing.Character.HumanoidRootPart.Velocity.Z * (Flags['LegitAimAssist_PredictionAmt']:Get()/100)))
+                else
+                    circleStrafeTargPos = currentRotationing.Character.HumanoidRootPart.Position + Vector3.new(0,5,0)
+                end
+                ideez = (ideez+ dt/(Flags['Circle_StrafeCycle']:Get() / 10)) % 1
+                local alpha = 2 * math.pi * ideez
+                clientCharacter.HumanoidRootPart.CFrame = CFrame.Angles(0, alpha, 0) * CFrame.new(0, 0, Flags['Circle_Distance']:Get()) + circleStrafeTargPos
+            end
+        end
+    else
+        currentRotationing = nil
+    end
+end
+
+--[[
+    <void> drawAimviewer()
+]]--
+local drawAimviewer = function()
+    for _, player in next, aimviewerTargets do
+        if player[2] == nil then
+            -- create a new Aimviewer Beam
+            local beam = Instance.new("Part", workspace)
+            beam.Material = Enum.Material.ForceField
+            beam.Color = theme.accent
+            beam.CanCollide = false
+            player[2] = beam
+        else
+            if isAlive(player[1]) and player[1].Character:FindFirstChildOfClass("Tool") then 
+                player[2].Size = Vector3.new(0.3, 0.3, (player[1].Character.Head.CFrame * CFrame.new(0, 0, 0).Position - player[1].Character["BodyEffects"].MousePos.Value).Magnitude)
+                player[2].CFrame = CFrame.new(player[1].Character.Head.CFrame * CFrame.new(0, 0, 0).Position, player[1].Character["BodyEffects"].MousePos.Value) * CFrame.new(0, 0, player[2].Size.Z / -2)
+                player[2].Color = theme.accent
+            else
+                player[2].Position = Vector3.new(999999,9999999,999999)
+            end
+        end
+    end
+end
+
+
+
+-- main RS
+runService.RenderStepped:Connect(function(dt)
+
+    currentTarget = getTarget() 
+
+    if Flags['Locktarget_EnabledKey']:Active() == true then
+        if lockedTarget ~= nil then
+            if isInFov(lockedTarget) then
+                currentTarget = lockedTarget
+            else
+                currentTarget = nil
+                currentAimpoint = nil
+            end
+        else
+            lockedTarget = currentTarget
+        end
+    else
+        lockedTarget = nil
+    end
+   -- Aim --
+   calculateAimpoint() 
+
+    -- Visuals --
+    drawFov()
+    drawAimpoint()
+    drawEsp()
+    misc:UpdateBeams()
+    drawWeapons()
+    drawAimviewer()
+
+    -- Rage --
+    autoShoot()
+
+ 
+
+    -- camlock --
+    camlock()
+
+    -- circle strafer --
+    circleStrafe(dt)
+    
+    -- chat spam -- 
+    if Flags['ChatSpam_Enabled']:Get() == true then
+        if tick() >= chatSpamTick + Flags['ChatSpam_Delay']:Get() then
+            sayMessage(chatSpams[Flags['ChatSpam_Type']:Get()][math.random(1, #chatSpams[Flags['ChatSpam_Type']:Get()])])
+            chatSpamTick = tick()
+        end
+    end
+
+    -- anti bag --
+    if clientCharacter ~= nil then
+        if clientCharacter:FindFirstChild("Christmas_Sock") ~= nil then
+            clientCharacter:FindFirstChild("Christmas_Sock"):Destroy()
+        end
+    end
+
+    -- menu effects --
+    --Library:UpdateHue()    
+
+end)
+
+
+local __namecall -- cock ;)
+__namecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local Args = {...}
+    local Method = getnamecallmethod()
+
+    if tostring(self.Name) == "MainEvent" and tostring(Method) == "FireServer" then
+        
+        if Find({"TeleportDetect", "CHECKER_1", "CHECKER", "GUI_CHECK", "OneMoreTime", "checkingSPEED", "BANREMOTE", "KICKREMOTE", "BR_KICKPC", "BR_KICKMOBILE"}, Args[1]) then
+            return
+        end
+    end
+
+    return __namecall(self, ...)
+end)
+
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+
+    
+    if Flags['Aimviewer_Bypass']:Get() == false and currentTarget ~= nil and currentAimpoint ~= nil and Flags['Prediction_EnabledKey']:Active() == true then
+        if typeof(args[2]) == "Vector3" then
+            args[2] = currentAimpoint
+        end
+        return backupnamecall(self, unpack(args))
+    end
+
+    if typeof(args[2]) == "Vector3" then
+        shootArgument = args[1]
+    end
+    
+    if game.PlaceId == 9825515356 then -- afk bypass in customs
+        if args[1] == "RequestAFKDisplay" then
+            args[2] = false
+            return backupnamecall(self, unpack(args))
+        end
+    end
+
+    return backupnamecall(self, ...)
+end)
